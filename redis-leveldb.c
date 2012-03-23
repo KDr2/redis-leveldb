@@ -177,12 +177,7 @@ static int inc(rl_connection* c, char* b) {
     return 1;
   }
 
-  char buf[256];
-  buf[0] = '$';
-  int count = sprintf(buf + 1, "%ld", out_size);
-
-  write(c->fd, buf, count + 1);
-  write(c->fd, "\r\n", 2);
+  write(c->fd, ":", 1);
   write(c->fd, out, out_size);
   write(c->fd, "\r\n", 2);
 
