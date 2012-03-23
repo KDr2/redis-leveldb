@@ -108,6 +108,12 @@ static void write_error(int fd, const char* msg) {
   write(fd, "\r\n", 2);
 }
 
+static void write_status(int fd, const char* msg) {
+  write(fd, "+", 1);
+  write(fd, msg, strlen(msg));
+  write(fd, "\r\n", 2);
+}
+
 static int inc(rl_connection* c, char* b) {
   if(*b++ != '$') return -1;
 
@@ -210,7 +216,7 @@ static int set(rl_connection* c, char* b) {
 
   if(err) error(err);
 
-  write(c->fd, "$-1\r\n", 5);
+  write_status(c->fd, "OK");
 
   return 1;
 }
@@ -231,8 +237,10 @@ static int handle(rl_connection* c) {
     if(size == 3) {
       if(memcmp(b, "get", 3) == 0) {
         return get(c, b + 5);
-      } else if(memcmp(b, "inc", 3) == 0) {
-        return inc(c, b + 5);
+      }
+    } else if(size == 4) {
+      if(memcmp(b, "incr", 4) == 0) {
+        return inc(c, b + 6);
       }
     }
 
