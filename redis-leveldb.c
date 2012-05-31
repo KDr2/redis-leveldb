@@ -458,7 +458,35 @@ on_connection(struct ev_loop *loop, ev_io *watcher, int revents) {
   ev_io_start(s->loop, &connection->read_watcher);
 }
 
-int main(int argc, char** argv) {
+int daemon_init(void) 
+{ 
+    pid_t pid;
+    if((pid = fork()) < 0) {
+        return -1; 
+    } else if(pid != 0) {
+        exit(0); //parent exit
+    }
+
+    /* child continues */ 
+    setsid(); /* become session leader */ 
+    //chdir("/"); /* change working directory */ 
+    
+    umask(0); /* clear file mode creation mask */ 
+    close(0); /* close stdin */ 
+    close(1); /* close stdout */ 
+    close(2); /* close stderr */ 
+    
+    return 0;
+}
+
+void sig_term(int signo) { 
+    if(signo == SIGTERM) /* catched signal sent by kill(1) command */ 
+    { 
+        exit(0); 
+    } 
+} 
+
+int run_server() {
   rl_server s;
 
   s.options = leveldb_options_create();
@@ -486,3 +514,17 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
+int main(int argc, char** argv) {
+    if(daemon_init() == -1) { 
+        printf("can't fork self\n"); 
+        exit(0);
+    } 
+    
+    signal(SIGTERM, sig_term); /* arrange to catch the signal */ 
+    while(1) { 
+        run_server();
+    } 
+    return 0;
+}
+
