@@ -127,7 +127,7 @@ static void write_status(int fd, const char* msg) {
   write(fd, "\r\n", 2);
 }
 
-static int incrby(rl_connection* c, char* b) {
+static int inc(rl_connection* c, char* b) {
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
@@ -229,6 +229,99 @@ static int set(rl_connection* c, char* b) {
   return 1;
 }
 
+static int incrby(rl_connection* c, char* b) {
+  if(*b++ != '$') return -1;
+
+
+  size_t size = get_int(&b);
+
+  size_t out_size = 0;
+  char* err = 0;
+
+  char* out = leveldb_get(c->server->db, c->server->read_options,
+                          b, size, &out_size, &err);
+
+  if(err) {
+    error(err);
+    out = 0;
+  }
+
+  // get val
+  char *n_b = b;
+  n_b += size;
+  n_b += 2;
+  if(*n_b++ != '$') return -1;
+
+  size_t val_size = get_int(&n_b);
+  char* val = n_b;
+  val[val_size] = 0;
+
+  char* n_val = malloc(val_size);
+  memset(n_val, 0, val_size);
+  memcpy(n_val, val, val_size);
+  int i_val = atoi(n_val);
+  free(n_val);
+
+  if(!out) out = strdup("0");
+
+
+  for ( int k = 1; k <= i_val; k ++){
+    int done = 0;
+    for(int i = out_size - 1; i >= 0; i--) {
+      switch(out[i]) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+          // 
+          out[i]++;
+          done = 1;
+          break;
+        case '9':
+          out[i] = '0';
+          break;
+        default:
+          write_error(c->fd, "bad key type");
+          return 1;
+      }
+
+      if(done) break;
+    }
+
+    if(!done) {
+      realloc(out, out_size + 1);
+      memmove(out + 1, out, out_size);
+      out[0] = '1';
+
+      out_size++;
+    }
+  }//for k
+
+  leveldb_put(c->server->db, c->server->write_options,
+                          b, size,
+                          out, out_size, &err);
+
+  if(err) {
+    free(out);
+    write_error(c->fd, err);
+    return 1;
+  }
+
+  write(c->fd, ":", 1);
+  write(c->fd, out, out_size);
+  write(c->fd, "\r\n", 2);
+
+  free(out);
+
+  return 1;
+}
+
+
 static int handle(rl_connection* c) {
   char* b = c->read_buffer;
 
@@ -248,7 +341,7 @@ static int handle(rl_connection* c) {
       }
     } else if(size == 4) {
       if(cmp_ignore_case(b, "incr", 4) == 0) {
-        return incrby(c, b + 6);
+        return inc(c, b + 6);
       }
     }
 
