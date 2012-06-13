@@ -173,7 +173,7 @@ static int inc(rl_connection* c, char* b) {
   }
 
   if(!done) {
-    realloc(out, out_size + 1);
+    out=realloc(out, out_size + 1);
     memmove(out + 1, out, out_size);
     out[0] = '1';
 
@@ -294,7 +294,7 @@ static int incrby(rl_connection* c, char* b) {
     }
 
     if(!done) {
-      realloc(out, out_size + 1);
+      out=realloc(out, out_size + 1);
       memmove(out + 1, out, out_size);
       out[0] = '1';
 
