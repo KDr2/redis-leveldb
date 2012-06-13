@@ -53,20 +53,15 @@ static void error(const char* s) {
 
 static int cmp_ignore_case(const char* a, const char* b, size_t s)
 {
-    for (size_t i=0; i<s; i++)
-    {
-        if(tolower(a[i])==tolower(b[i])) 
-        {
-            continue;
-        }
-        else 
-        {
-            return 1;
-        }
+  for (size_t i=0; i<s; i++) {
+    if(tolower(a[i])==tolower(b[i])) {
+      continue;
+    } else {
+      return 1;
     }
-    return 0;
+  }
+  return 0;
 }
-
 
 static size_t get_int(char** i) {
   char* b = *i;
