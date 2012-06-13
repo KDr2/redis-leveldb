@@ -1,8 +1,11 @@
 
+CFLAGS += -Ivendor/leveldb/include -std=c99
+LDFLAGS += -lev vendor/libleveldb.a -lm
+
 redis-leveldb: redis-leveldb.c \
 		vendor/libleveldb.a
-	gcc -Wall -Ivendor/leveldb/include -std=c99 -c -o redis-leveldb.o -O0 -ggdb redis-leveldb.c
-	g++ -o redis-leveldb redis-leveldb.o -lev vendor/libleveldb.a -lm
+	gcc -Wall $(CFLAGS) -c -o redis-leveldb.o -O0 -ggdb redis-leveldb.c
+	g++ -o redis-leveldb redis-leveldb.o $(LDFLAGS)
 
 clean:
 	rm redis-leveldb *.o

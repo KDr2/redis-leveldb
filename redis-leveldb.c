@@ -541,11 +541,12 @@ int run_server() {
 }
 
 int main(int argc, char** argv) {
+    /*
     if(daemon_init() == -1) { 
         printf("can't fork self\n"); 
         exit(0);
     } 
-    
+    */
     signal(SIGTERM, sig_term); /* arrange to catch the signal */ 
     while(1) { 
         run_server();
