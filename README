@@ -1,0 +1,12 @@
+wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
+cd libev-4.11
+./configure
+make
+make install
+
+git clone git@github.com:appwilldev/redis-leveldb.git
+cd redis-leveldb
+git submodule init
+git submodule update
+
+make
