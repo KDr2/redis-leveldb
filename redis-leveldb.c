@@ -446,7 +446,8 @@ rl_connection* new_connection(rl_server* s, int fd) {
   connection->server = s;
   connection->ip = NULL;
   connection->open = 0;
-
+  connection->buffered_data = 0;
+  
   /* ev_init(&connection->write_watcher, on_writable); */
   /* connection->write_watcher.data = connection; */
 
