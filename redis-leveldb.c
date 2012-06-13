@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <time.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #include <sys/socket.h>
 #include <netinet/tcp.h> /* TCP_NODELAY */
@@ -49,6 +50,23 @@ typedef struct rl_connection {
 static void error(const char* s) {
   puts(s);
 }
+
+static int cmp_ignore_case(const char* a, const char* b, size_t s)
+{
+    for (size_t i=0; i<s; i++)
+    {
+        if(tolower(a[i])==tolower(b[i])) 
+        {
+            continue;
+        }
+        else 
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 
 static size_t get_int(char** i) {
   char* b = *i;
@@ -114,7 +132,7 @@ static void write_status(int fd, const char* msg) {
   write(fd, "\r\n", 2);
 }
 
-static int inc(rl_connection* c, char* b) {
+static int incrby(rl_connection* c, char* b) {
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
@@ -230,12 +248,12 @@ static int handle(rl_connection* c) {
     size_t size = get_int(&b);
 
     if(size == 3) {
-      if(memcmp(b, "get", 3) == 0) {
+      if(cmp_ignore_case(b, "get", 3) == 0) {
         return get(c, b + 5);
       }
     } else if(size == 4) {
-      if(memcmp(b, "incr", 4) == 0) {
-        return inc(c, b + 6);
+      if(cmp_ignore_case(b, "incr", 4) == 0) {
+        return incrby(c, b + 6);
       }
     }
 
@@ -248,12 +266,19 @@ static int handle(rl_connection* c) {
 
     size_t size = get_int(&b);
 
-    if(size == 3 && memcmp(b, "set", 3) == 0) {
+    if(size == 3 && cmp_ignore_case(b, "set", 3) == 0) {
       b += size;
       b += 2;
 
       return set(c, b);
-    } else {
+    }
+    else if(size == 6 && cmp_ignore_case(b, "incrby", 6) == 0) {
+      b += size;
+      b += 2;
+
+      return incrby(c, b);
+    } 
+    else {
       write_error(c->fd, "unknown command");
     }
     break;

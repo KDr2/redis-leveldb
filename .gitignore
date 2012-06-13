@@ -1,3 +1,5 @@
 redis-leveldb
 *.a
 *.o
+redis.db
+
