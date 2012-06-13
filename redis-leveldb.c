@@ -71,12 +71,12 @@ static int cmp_ignore_case(const char* a, const char* b, size_t s)
 static size_t get_int(char** i) {
   char* b = *i;
 
-  size_t val = 0, pos = 1;
+  size_t val = 0, pos = 10;
 
   while(*b != '\r') {
     val *= pos;
     val += (*b++ - '0');
-    pos *= 10;
+    //pos *= 10;
   }
 
   b += 2;
@@ -634,12 +634,12 @@ int run_server() {
 }
 
 int main(int argc, char** argv) {
+    /*
     if(daemon_init() == -1) { 
         printf("can't fork self\n"); 
         exit(0);
     } 
-    
-    printf("begin here\n");
+    */
     signal(SIGTERM, sig_term); /* arrange to catch the signal */ 
     while(1) { 
         run_server();
