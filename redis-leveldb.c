@@ -673,7 +673,8 @@ int main(int argc, char** argv) {
     }
   }
   
-  signal(SIGTERM, sig_term); /* arrange to catch the signal */ 
+  signal(SIGTERM, sig_term); /* arrange to catch the signal */
+  signal(SIGPIPE, SIG_IGN);
   while(1) { 
     run_server();
   } 
