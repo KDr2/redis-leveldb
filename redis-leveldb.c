@@ -406,6 +406,7 @@ on_readable(struct ev_loop *loop, ev_io *watcher, int revents)
   if(recved == 0) {
     ev_io_stop(loop, &connection->read_watcher);
     close(connection->fd);
+    free(connection);
     return;
   }
 

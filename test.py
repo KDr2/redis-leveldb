@@ -1,7 +1,7 @@
 import redis
 import time
 
-r = redis.StrictRedis(host='192.168.1.61', port=8323)
+r = redis.StrictRedis(host='localhost', port=8323)
 #time.sleep(1)
 print r.set("key", 'b'*50)
 print r.get("key")
