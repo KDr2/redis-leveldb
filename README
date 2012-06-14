@@ -9,5 +9,12 @@ git clone git@github.com:appwilldev/redis-leveldb.git
 cd redis-leveldb
 git submodule init
 git submodule update
-
 make
+
+Usage:
+    ./redis-leveldb [options]
+Options:
+    -d:      daemon
+    -H host-ip:  listen host
+    -P port:     listen port
+    -D data-dir:     data dir
