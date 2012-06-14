@@ -1,4 +1,5 @@
 wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
+tar vfxz libev-4.11.tar.gz
 cd libev-4.11
 ./configure
 make
