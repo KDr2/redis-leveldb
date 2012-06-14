@@ -625,16 +625,31 @@ int run_server() {
 }
 
 int main(int argc, char** argv) {
-    /*
+  int daemon_flag = 0, ch;
+  while ((ch = getopt(argc, argv, "dh")) != -1) {
+    switch (ch) {
+    case 'd':
+      daemon_flag = 1;
+      break;
+    case 'h':
+      printf("Usage:\n\t./redis-leveldb [-d]\n");
+      exit(0);
+    default:
+      break;
+    }
+  }
+  
+  if(daemon_flag){
     if(daemon_init() == -1) { 
-        printf("can't fork self\n"); 
-        exit(0);
-    } 
-    */
-    signal(SIGTERM, sig_term); /* arrange to catch the signal */ 
-    while(1) { 
-        run_server();
-    } 
-    return 0;
+      printf("can't fork self\n"); 
+      exit(0);
+    }
+  }
+  
+  signal(SIGTERM, sig_term); /* arrange to catch the signal */ 
+  while(1) { 
+    run_server();
+  } 
+  return 0;
 }
 
