@@ -483,7 +483,7 @@ rl_connection* new_connection(rl_server* s, int fd) {
 
 int server_listen_on_fd(rl_server* s, int fd);
 
-int make_server(rl_server* s, const int port) {
+int make_server(rl_server* s, const char *hostaddr, const int port) {
   int fd = -1;
   struct linger ling = {0, 0};
   struct sockaddr_in addr;
@@ -511,7 +511,15 @@ int make_server(rl_server* s, const int port) {
   
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  if(hostaddr){
+    addr.sin_addr.s_addr = inet_addr(hostaddr);
+    if(addr.sin_addr.s_addr==INADDR_NONE){
+      printf("Bad address(%s) to listen\n",hostaddr);
+      exit(1);
+    }
+  }else{
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  }
   
   if(bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("bind()");
@@ -618,7 +626,7 @@ void sig_term(int signo) {
     } 
 } 
 
-int run_server() {
+int run_server(const char *hostaddr, const char *db_path, int port) {
   rl_server s;
 
   s.options = leveldb_options_create();
@@ -629,7 +637,7 @@ int run_server() {
 
   char* err = 0;
 
-  s.db = leveldb_open(s.options, "redis.db", &err);
+  s.db = leveldb_open(s.options, db_path, &err);
   if(err) {
     puts(err);
     return 1;
@@ -640,27 +648,53 @@ int run_server() {
 
   ev_init(&s.connection_watcher, on_connection);
 
-  make_server(&s, 8323);
+  make_server(&s, hostaddr, port);
 
   ev_run(s.loop, 0);
 
   return 0;
 }
 
+extern char *optarg;
 int main(int argc, char** argv) {
   int daemon_flag = 0, ch;
+
+  int opt_host=0;
+  char hostaddr[64];
+  memset(hostaddr,0,64);
+
+  int port=8323;
+
+  char data_dir[128];
+  memset(data_dir,0,128);
+  strncpy(data_dir,"redis.db",8);
+  
   while ((ch = getopt(argc, argv, "hdH:P:D:")) != -1) {
     switch (ch) {
-    case 'd':
-      daemon_flag = 1;
-      break;
     case 'h':
       printf("Usage:\n\t./redis-leveldb [options]\n");
       printf("Options:\n\t-d:\t\t daemon\n");
-      printf("\t-H host:\t listen host\n");
-      printf("\t-p port:\t listen port\n");
+      printf("\t-H host-ip:\t listen host\n");
+      printf("\t-P port:\t listen port\n");
       printf("\t-D data-dir:\t data dir\n");
       exit(0);
+    case 'd':
+      daemon_flag = 1;
+      break;
+    case 'H':
+      strcpy(hostaddr,optarg);
+      opt_host=1;
+      break;
+    case 'P':
+      port=(int)strtol(optarg, (char **)NULL, 10);
+      if(!port){
+        printf("Bad port(-P) value\n");
+        exit(1);
+      }
+      break;
+    case 'D':
+      strcpy(data_dir,optarg);
+      break;
     default:
       break;
     }
@@ -675,8 +709,12 @@ int main(int argc, char** argv) {
   
   signal(SIGTERM, sig_term); /* arrange to catch the signal */
   signal(SIGPIPE, SIG_IGN);
-  while(1) { 
-    run_server();
+  while(1) {
+    if(opt_host){
+      run_server(hostaddr, data_dir, port);
+    }else{
+      run_server(NULL, data_dir, port);
+    }
   } 
   return 0;
 }
