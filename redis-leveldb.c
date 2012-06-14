@@ -19,7 +19,7 @@
 #define MAX_CONNECTIONS 1024
 #define READ_BUFFER 81920
 
-#define CHECK_BUFFER(pos,con) do{if(((pos)-con->read_buffer)-con->buffered_data)return(0);}while(0)
+#define CHECK_BUFFER(pos,con) do{if(((pos)-con->read_buffer)>con->buffered_data)return(0);}while(0)
 
 typedef struct rl_server {
   struct ev_loop* loop;
@@ -78,10 +78,12 @@ static size_t get_int(char** i) {
 }
 
 static int get(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+1,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
-
+  CHECK_BUFFER(b+size,c);
+  
   size_t out_size = 0;
   char* err = 0;
 
@@ -124,10 +126,12 @@ static void write_status(int fd, const char* msg) {
 }
 
 static int inc(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+1,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
-
+  CHECK_BUFFER(b+size,c);
+  
   size_t out_size = 0;
   char* err = 0;
 
@@ -196,7 +200,7 @@ static int inc(rl_connection* c, char* b) {
 }
 
 static int set(rl_connection* c, char* b) {
-  CHECK_BUFFER(b,c);
+  CHECK_BUFFER(b+1,c);
   if(*b++ != '$') return -1;
 
   size_t key_size = get_int(&b);
@@ -205,13 +209,12 @@ static int set(rl_connection* c, char* b) {
   b += key_size;
   b += 2;
 
-  CHECK_BUFFER(b,c);
+  CHECK_BUFFER(b+1,c);
   
   if(*b++ != '$') return -1;
 
   size_t val_size = get_int(&b);
 
-  CHECK_BUFFER(b,c);
   CHECK_BUFFER(b+val_size,c);
   
   char* val = b;
@@ -232,11 +235,12 @@ static int set(rl_connection* c, char* b) {
 }
 
 static int incrby(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+1,c);
   if(*b++ != '$') return -1;
 
-
   size_t size = get_int(&b);
-
+  CHECK_BUFFER(b+size,c);
+  
   size_t out_size = 0;
   char* err = 0;
 
@@ -327,18 +331,20 @@ static int incrby(rl_connection* c, char* b) {
 static int handle(rl_connection* c) {
   char* b = c->read_buffer;
 
+  CHECK_BUFFER(b+1,c);
   if(*b++ != '*') return -1;
 
   size_t count = get_int(&b);
-
-  CHECK_BUFFER(b,c);
+  //for next $
+  CHECK_BUFFER(b+1,c);
   
   switch(count) {
   case 2: {
     if(*b++ != '$') return -1;
 
     size_t size = get_int(&b);
-
+    CHECK_BUFFER(b+size+2,c);
+    
     if(size == 3) {
       if(cmp_ignore_case(b, "get", 3) == 0) {
         return get(c, b + 5);
@@ -357,7 +363,8 @@ static int handle(rl_connection* c) {
     if(*b++ != '$') return -1;
 
     size_t size = get_int(&b);
-
+    CHECK_BUFFER(b+size+2,c);
+    
     if(size == 3 && cmp_ignore_case(b, "set", 3) == 0) {
       b += size;
       b += 2;
