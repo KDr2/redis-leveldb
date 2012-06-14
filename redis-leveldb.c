@@ -1,3 +1,11 @@
+
+/*
+ * for strdup/getopt on linux
+ */
+#ifdef __linux
+#define _XOPEN_SOURCE 800
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
