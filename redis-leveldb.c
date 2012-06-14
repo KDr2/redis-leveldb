@@ -370,14 +370,12 @@ static int handle(rl_connection* c) {
       b += 2;
 
       return set(c, b);
-    }
-    else if(size == 6 && cmp_ignore_case(b, "incrby", 6) == 0) {
+    }else if(size == 6 && cmp_ignore_case(b, "incrby", 6) == 0) {
       b += size;
       b += 2;
 
       return incrby(c, b);
-    } 
-    else {
+    }else {
       write_error(c->fd, "unknown command");
     }
     break;
