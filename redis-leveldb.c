@@ -194,6 +194,7 @@ static int inc(rl_connection* c, char* b) {
 }
 
 static int set(rl_connection* c, char* b) {
+  if(b-c->read_buffer>c->buffered_data)return(0);
   if(*b++ != '$') return -1;
 
   size_t key_size = get_int(&b);
@@ -201,12 +202,16 @@ static int set(rl_connection* c, char* b) {
 
   b += key_size;
   b += 2;
-
+  
+  if(b-c->read_buffer>c->buffered_data)return(0);
+  
   if(*b++ != '$') return -1;
 
   size_t val_size = get_int(&b);
+  if(b-c->read_buffer>c->buffered_data)return(0);
+  if(b+val_size-c->read_buffer>c->buffered_data)return(0);
+  
   char* val = b;
-
   char* err = 0;
 
   key[key_size] = 0;
@@ -322,7 +327,9 @@ static int handle(rl_connection* c) {
   if(*b++ != '*') return -1;
 
   size_t count = get_int(&b);
-
+  
+  if(b-c->read_buffer>c->buffered_data)return 0;
+  
   switch(count) {
   case 2: {
     if(*b++ != '$') return -1;
