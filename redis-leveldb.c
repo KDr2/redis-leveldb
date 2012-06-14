@@ -79,6 +79,7 @@ static size_t get_int(char** i) {
   while(*b != '\r') {
     val *= 10;
     val += (*b++ - '0');
+    if(val>READ_BUFFER) return READ_BUFFER;
   }
   b += 2;
   *i = b;
@@ -86,7 +87,7 @@ static size_t get_int(char** i) {
 }
 
 static int get(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+1,c);
+  CHECK_BUFFER(b+2,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
@@ -134,7 +135,7 @@ static void write_status(int fd, const char* msg) {
 }
 
 static int inc(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+1,c);
+  CHECK_BUFFER(b+2,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
@@ -208,7 +209,7 @@ static int inc(rl_connection* c, char* b) {
 }
 
 static int set(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+1,c);
+  CHECK_BUFFER(b+2,c);
   if(*b++ != '$') return -1;
 
   size_t key_size = get_int(&b);
@@ -223,7 +224,7 @@ static int set(rl_connection* c, char* b) {
 
   size_t val_size = get_int(&b);
 
-  CHECK_BUFFER(b+val_size,c);
+  CHECK_BUFFER(b+val_size+1,c);
   
   char* val = b;
   char* err = 0;
@@ -243,7 +244,7 @@ static int set(rl_connection* c, char* b) {
 }
 
 static int incrby(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+1,c);
+  CHECK_BUFFER(b+2,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
@@ -264,10 +265,13 @@ static int incrby(rl_connection* c, char* b) {
   char *n_b = b;
   n_b += size;
   n_b += 2;
+
+  CHECK_BUFFER(n_b+2,c);
   if(*n_b++ != '$') return -1;
 
   size_t val_size = get_int(&n_b);
-  char* val = n_b;
+  char* val = n_b; 
+  CHECK_BUFFER(n_b+val_size+1,c);
   val[val_size] = 0;
 
   char* n_val = malloc(val_size);
@@ -339,12 +343,13 @@ static int incrby(rl_connection* c, char* b) {
 static int handle(rl_connection* c) {
   char* b = c->read_buffer;
 
-  CHECK_BUFFER(b+1,c);
+  CHECK_BUFFER(b+2,c);
   if(*b++ != '*') return -1;
 
   size_t count = get_int(&b);
-  //for next $
-  CHECK_BUFFER(b+1,c);
+  
+  //check command elements
+  CHECK_BUFFER(b+count,c);
   
   switch(count) {
   case 2: {
