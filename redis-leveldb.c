@@ -626,7 +626,7 @@ void sig_term(int signo) {
     } 
 } 
 
-int run_server(const char *hostaddr, const char *db_path, int port) {
+int run_server(const char *db_path, const char *hostaddr, int port) {
   rl_server s;
 
   s.options = leveldb_options_create();
@@ -711,9 +711,9 @@ int main(int argc, char** argv) {
   signal(SIGPIPE, SIG_IGN);
   while(1) {
     if(opt_host){
-      run_server(hostaddr, data_dir, port);
+      run_server(data_dir, hostaddr, port);
     }else{
-      run_server(NULL, data_dir, port);
+      run_server(data_dir, NULL, port);
     }
   } 
   return 0;
