@@ -649,13 +649,17 @@ int run_server() {
 
 int main(int argc, char** argv) {
   int daemon_flag = 0, ch;
-  while ((ch = getopt(argc, argv, "dh")) != -1) {
+  while ((ch = getopt(argc, argv, "hdH:P:D:")) != -1) {
     switch (ch) {
     case 'd':
       daemon_flag = 1;
       break;
     case 'h':
-      printf("Usage:\n\t./redis-leveldb [-d]\n");
+      printf("Usage:\n\t./redis-leveldb [options]\n");
+      printf("Options:\n\t-d:\t\t daemon\n");
+      printf("\t-H host:\t listen host\n");
+      printf("\t-p port:\t listen port\n");
+      printf("\t-D data-dir:\t data dir\n");
       exit(0);
     default:
       break;
