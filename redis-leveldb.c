@@ -65,19 +65,13 @@ static int cmp_ignore_case(const char* a, const char* b, size_t s)
 
 static size_t get_int(char** i) {
   char* b = *i;
-
-  size_t val = 0, pos = 10;
-
+  size_t val = 0;
   while(*b != '\r') {
-    val *= pos;
+    val *= 10;
     val += (*b++ - '0');
-    //pos *= 10;
   }
-
   b += 2;
-
   *i = b;
-
   return val;
 }
 
