@@ -20,6 +20,8 @@
 #include <netinet/in.h>  /* inet_ntoa */
 #include <arpa/inet.h>   /* inet_ntoa */
 
+#include <gmp.h>
+
 #include <ev.h>
 
 #include <leveldb/c.h>
@@ -79,6 +81,10 @@ static size_t get_int(char** i) {
   while(*b != '\r') {
     val *= 10;
     val += (*b++ - '0');
+    /*
+     * the len may be not read completed now
+     * if so, return a big int to make CHECK_BUFFER return 0
+     */
     if(val>READ_BUFFER) return READ_BUFFER;
   }
   b += 2;
@@ -87,11 +93,11 @@ static size_t get_int(char** i) {
 }
 
 static int get(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+2,c);
+  CHECK_BUFFER(b+3,c); /* 3: at least 1 num, fllowed by '\r\n'*/
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
-  CHECK_BUFFER(b+size,c);
+  CHECK_BUFFER(b+size+1,c);
   
   size_t out_size = 0;
   char* err = 0;
@@ -135,11 +141,11 @@ static void write_status(int fd, const char* msg) {
 }
 
 static int inc(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+2,c);
+  CHECK_BUFFER(b+3,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
-  CHECK_BUFFER(b+size,c);
+  CHECK_BUFFER(b+size+1,c);
   
   size_t out_size = 0;
   char* err = 0;
@@ -152,64 +158,43 @@ static int inc(rl_connection* c, char* b) {
     out = 0;
   }
 
-  if(!out) out = strdup("0");
-
-  int done = 0;
-
-  for(int i = out_size - 1; i >= 0; i--) {
-    switch(out[i]) {
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-        out[i]++;
-        done = 1;
-        break;
-      case '9':
-        out[i] = '0';
-        break;
-      default:
-        write_error(c->fd, "bad key type");
-        return 1;
-    }
-
-    if(done) break;
+  char *str_oldv=NULL;
+  if(!out){
+    str_oldv = strdup("0");
+  }else{
+    str_oldv=malloc(out_size+1);
+    memcpy(str_oldv,out,out_size);
+    str_oldv[out_size]=0;
+    free(out);
   }
 
-  if(!done) {
-    out=realloc(out, out_size + 1);
-    memmove(out + 1, out, out_size);
-    out[0] = '1';
-
-    out_size++;
-  }
+  mpz_t old_v;
+  mpz_init(old_v);
+  mpz_set_str(old_v,str_oldv,10);
+  free(str_oldv);
+  mpz_add_ui(old_v,old_v,1);
+  char *str_newv=mpz_get_str(NULL,10,old_v);
+  mpz_clear(old_v);
 
   leveldb_put(c->server->db, c->server->write_options,
-                          b, size,
-                          out, out_size, &err);
+              b, size,
+              str_newv, strlen(str_newv), &err);
 
   if(err) {
-    free(out);
     write_error(c->fd, err);
+    free(str_newv);
     return 1;
   }
 
   write(c->fd, ":", 1);
-  write(c->fd, out, out_size);
+  write(c->fd, str_newv, strlen(str_newv));
   write(c->fd, "\r\n", 2);
-
-  free(out);
-
+  free(str_newv);
   return 1;
 }
 
 static int set(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+2,c);
+  CHECK_BUFFER(b+3,c);
   if(*b++ != '$') return -1;
 
   size_t key_size = get_int(&b);
@@ -218,7 +203,7 @@ static int set(rl_connection* c, char* b) {
   b += key_size;
   b += 2;
 
-  CHECK_BUFFER(b+1,c);
+  CHECK_BUFFER(b+3,c);
   
   if(*b++ != '$') return -1;
 
@@ -244,7 +229,7 @@ static int set(rl_connection* c, char* b) {
 }
 
 static int incrby(rl_connection* c, char* b) {
-  CHECK_BUFFER(b+2,c);
+  CHECK_BUFFER(b+3,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
@@ -274,68 +259,43 @@ static int incrby(rl_connection* c, char* b) {
   CHECK_BUFFER(n_b+val_size+1,c);
   val[val_size] = 0;
 
-  char* n_val = malloc(val_size);
-  memset(n_val, 0, val_size);
-  memcpy(n_val, val, val_size);
-  int i_val = atoi(n_val);
-  free(n_val);
+  mpz_t delta;
+  mpz_init(delta);
+  mpz_set_str(delta,val,10);
 
-  if(!out) out = strdup("0");
+  char *str_oldv=NULL;
+  if(!out){
+    str_oldv = strdup("0");
+  }else{
+    str_oldv=malloc(out_size+1);
+    memcpy(str_oldv,out,out_size);
+    str_oldv[out_size]=0;
+    free(out);
+  }
 
-
-  for ( int k = 1; k <= i_val; k ++){
-    int done = 0;
-    for(int i = out_size - 1; i >= 0; i--) {
-      switch(out[i]) {
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-          // 
-          out[i]++;
-          done = 1;
-          break;
-        case '9':
-          out[i] = '0';
-          break;
-        default:
-          write_error(c->fd, "bad key type");
-          return 1;
-      }
-
-      if(done) break;
-    }
-
-    if(!done) {
-      out=realloc(out, out_size + 1);
-      memmove(out + 1, out, out_size);
-      out[0] = '1';
-
-      out_size++;
-    }
-  }//for k
-
+  mpz_t old_v;
+  mpz_init(old_v);
+  mpz_set_str(old_v,str_oldv,10);
+  free(str_oldv);
+  mpz_add(old_v,old_v,delta);
+  char *str_newv=mpz_get_str(NULL,10,old_v);
+  mpz_clear(delta);
+  mpz_clear(old_v);
+  
   leveldb_put(c->server->db, c->server->write_options,
-                          b, size,
-                          out, out_size, &err);
+              b, size,
+              str_newv, strlen(str_newv), &err);
 
   if(err) {
-    free(out);
     write_error(c->fd, err);
+    free(str_newv);
     return 1;
   }
 
   write(c->fd, ":", 1);
-  write(c->fd, out, out_size);
+  write(c->fd, str_newv, strlen(str_newv));
   write(c->fd, "\r\n", 2);
-
-  free(out);
-
+  free(str_newv);
   return 1;
 }
 
