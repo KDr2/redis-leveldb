@@ -17,7 +17,9 @@
 #include <leveldb/c.h>
 
 #define MAX_CONNECTIONS 1024
-#define READ_BUFFER 8192
+#define READ_BUFFER 81920
+
+#define CHECK_BUFFER(pos,con) do{if(((pos)-con->read_buffer)-con->buffered_data)return(0);}while(0)
 
 typedef struct rl_server {
   struct ev_loop* loop;
@@ -194,7 +196,7 @@ static int inc(rl_connection* c, char* b) {
 }
 
 static int set(rl_connection* c, char* b) {
-  if(b-c->read_buffer>c->buffered_data)return(0);
+  CHECK_BUFFER(b,c);
   if(*b++ != '$') return -1;
 
   size_t key_size = get_int(&b);
@@ -202,14 +204,15 @@ static int set(rl_connection* c, char* b) {
 
   b += key_size;
   b += 2;
-  
-  if(b-c->read_buffer>c->buffered_data)return(0);
+
+  CHECK_BUFFER(b,c);
   
   if(*b++ != '$') return -1;
 
   size_t val_size = get_int(&b);
-  if(b-c->read_buffer>c->buffered_data)return(0);
-  if(b+val_size-c->read_buffer>c->buffered_data)return(0);
+
+  CHECK_BUFFER(b,c);
+  CHECK_BUFFER(b+val_size,c);
   
   char* val = b;
   char* err = 0;
@@ -327,8 +330,8 @@ static int handle(rl_connection* c) {
   if(*b++ != '*') return -1;
 
   size_t count = get_int(&b);
-  
-  if(b-c->read_buffer>c->buffered_data)return 0;
+
+  CHECK_BUFFER(b,c);
   
   switch(count) {
   case 2: {
