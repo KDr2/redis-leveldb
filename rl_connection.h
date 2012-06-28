@@ -49,9 +49,12 @@ public:
     size_t get_int();
     int  do_read();
     void do_request();
+    
     void write_error(const char* msg);
     void write_status(const char* msg);
-    
+    void write_nil();
+    void write_bulk(std::string &str);
+    void write_bulk(std::vector<std::string> &data);
 };
 
 #endif

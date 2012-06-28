@@ -5,7 +5,10 @@
  *
  */
 
+#include <algorithm>
+
 #include <assert.h>
+#include <unistd.h>
 #include <sys/socket.h>
 
 #include "rl_util.h"
@@ -94,6 +97,8 @@ int RLConnection::do_read(){
             int len=get_int();
             CHECK_BUFFER(len+2);
             current_request->name=std::string(next_idx,len);
+            std::transform(current_request->name.begin(), current_request->name.end(),
+                           current_request->name.begin(), ::tolower);
             next_idx+=len+2;
         }
         // 3. read a arg
@@ -173,5 +178,19 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
     /* error: */
     /* rl_connection_schedule_close(connection); */
 }
+
+    
+void RLConnection::write_error(const char* msg){
+    write(fd, "-", 1);
+    write(fd, msg, strlen(msg));
+    write(fd, "\r\n", 2);
+}
+
+void RLConnection::write_status(const char* msg){
+    write(fd, "+", 1);
+    write(fd, msg, strlen(msg));
+    write(fd, "\r\n", 2);
+}
+
 
 

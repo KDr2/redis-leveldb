@@ -27,6 +27,21 @@ public:
     void append_arg(std::string arg);
     void run();
     bool completed(){return arg_count==args.size();}
+
+    /** the db opers **/
+    void rl_get();
+    void rl_set();
+
+    void rl_mget();
+    void rl_mset();
+
+    void rl_incr();
+    void rl_incrby();
+    
+    void rl_multi();
+    void rl_exec();
+    void rl_discard();
+    
 };
 
 
