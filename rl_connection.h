@@ -19,7 +19,7 @@
 class RLServer;
 class RLRequest;
 
-#define CHECK_BUFFER(N) do{if(next_idx+(N)>buffered_data)return 0;}while(0)
+#define CHECK_BUFFER(N) do{if(next_idx+(N)>(read_buffer+buffered_data))return 0;}while(0)
 
 class RLConnection{
     
@@ -27,12 +27,9 @@ public:
     bool open;
     RLServer *server;    
     int fd;                     
-    //struct sockaddr_in sockaddr;
-    //socklen_t socklen;          
-    //char *ip;                   
 
-    int next_idx;
-    int buffered_data;
+    char *next_idx;        /* next val to handle*/
+    int buffered_data;   /* data has been read */
     char read_buffer[READ_BUFFER];
     RLRequest *current_request;
 
@@ -42,6 +39,7 @@ public:
     ev_timer goodbye_watcher; 
 
     /*** methods ***/
+    
     RLConnection(RLServer *s, int fd);
     ~RLConnection();
 

@@ -18,6 +18,7 @@ RLConnection::RLConnection(RLServer *s, int fd):
     fd(fd), buffered_data(0), server(s)
 {
 
+    next_idx = read_buffer;
     ev_init(&read_watcher, RLConnection::on_readable);
     read_watcher.data = this;
     timeout_watcher.data = this;
@@ -47,7 +48,7 @@ void RLConnection::start()
 
 
 size_t RLConnection::get_int() {
-    char *b = read_buffer+next_idx;
+    char *b = next_idx;
     size_t val = 0;
     while(*b != '\r') {
         val *= 10;
@@ -56,7 +57,7 @@ size_t RLConnection::get_int() {
     if(b<=(read_buffer+buffered_data)){
         if(val>0){
             b += 2;
-            next_idx = b-read_buffer;
+            next_idx = b;
         }
         return val;
     }
@@ -69,34 +70,51 @@ void RLConnection::do_request(){
         delete current_request;
         current_request=NULL;
         buffered_data=0;
+        next_idx=read_buffer;
     }
 }
 
 int RLConnection::do_read(){
-    if(!current_request)current_request=new RLRequest(this);
-    // 1. read the arg count:
-    if(current_request->arg_count==0){
-        CHECK_BUFFER(4);
-        char* b = read_buffer+next_idx;
-        if(*b++ != '*') return -1;
-        current_request->arg_count=get_int();
+    while(next_idx<read_buffer+buffered_data){
+        if(!current_request)current_request=new RLRequest(this);
+        // 1. read the arg count:
         if(current_request->arg_count==0){
-            return 0;
+            CHECK_BUFFER(4);
+            if(*next_idx++ != '*') return -1;
+            current_request->arg_count=get_int();
+            if(current_request->arg_count==0){
+                return 0;
+            }
+            current_request->arg_count--;
+        }
+        // 2. read the request name
+        if(current_request->arg_count>0 && current_request->name.empty()){
+            CHECK_BUFFER(4);
+            if(*next_idx++ != '$') return -1;
+            int len=get_int();
+            CHECK_BUFFER(len+2);
+            current_request->name=std::string(next_idx,len);
+            next_idx+=len+2;
+        }
+        // 3. read a arg
+        if(current_request->arg_count>0 &&
+           current_request->args.size()<current_request->arg_count){
+            CHECK_BUFFER(4);
+            if(*next_idx++ != '$') return -1;
+            int len=get_int();
+            CHECK_BUFFER(len+2);
+            current_request->append_arg(std::string(next_idx,len));
+            next_idx+=len+2;
         }
     }
-    // 2. read the request name
-    if(current_request->arg_count>0 && current_request->name.empty()){
-        //TODO
-    }
-    // 3. read a arg
-
     // 4. do the request
     if(current_request->arg_count>0 && 
        current_request->arg_count == current_request->args.size()){
         do_request();
+        return 1;
     }
     // 5. done
-    return 1;
+    return 0;
 }
 
 void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents)
@@ -141,6 +159,7 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
         break;
     case 0:
         // more data needed, leave the buffer.
+        //TODO
         break;
     default:
         puts("unknown return error");
