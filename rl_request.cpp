@@ -44,6 +44,11 @@ void RLRequest::run()
         rl_get();
     if(name=="set")
         rl_set();
+    if(name=="mget")
+        rl_mget();
+    if(name=="mset")
+        rl_mset();
+    
     printf("Request Name:%s\n",name.c_str());
     for(std::vector<std::string>::iterator it=args.begin();it!=args.end();it++)
         printf("Request arg:%s\n",it->c_str());
@@ -153,31 +158,31 @@ void RLRequest::rl_incrby(){
 void RLRequest::rl_get(){
     
     
-  size_t out_size = 0;
-  char* err = 0;
+    size_t out_size = 0;
+    char* err = 0;
 
-  char* out = leveldb_get(connection->server->db, connection->server->read_options,
-                          args[0].c_str(), args[0].size(), &out_size, &err);
+    char* out = leveldb_get(connection->server->db, connection->server->read_options,
+                            args[0].c_str(), args[0].size(), &out_size, &err);
 
-  if(err) {
-      puts(err);
-      out = 0;
-  }
+    if(err) {
+        puts(err);
+        out = 0;
+    }
 
-  if(!out) {
-      write(connection->fd, "$-1\r\n", 5);
-  } else {
-      char buf[256];
-      buf[0] = '$';
-      int count = sprintf(buf + 1, "%ld", out_size);
+    if(!out) {
+        write(connection->fd, "$-1\r\n", 5);
+    } else {
+        char buf[256];
+        buf[0] = '$';
+        int count = sprintf(buf + 1, "%ld", out_size);
       
-      write(connection->fd, buf, count + 1);
-      write(connection->fd, "\r\n", 2);
-      write(connection->fd, out, out_size);
-      write(connection->fd, "\r\n", 2);
+        write(connection->fd, buf, count + 1);
+        write(connection->fd, "\r\n", 2);
+        write(connection->fd, out, out_size);
+        write(connection->fd, "\r\n", 2);
       
-      free(out);
-  }
+        free(out);
+    }
   
 }
 
@@ -194,4 +199,62 @@ void RLRequest::rl_set(){
   
     connection->write_status("OK");
 }
+
+
+void RLRequest::rl_mget(){
+
+    char buf[256];
+    buf[0] = '*';
+    int count = sprintf(buf + 1, "%ld", args.size());
+    write(connection->fd, buf, count + 1);
+    write(connection->fd, "\r\n", 2);
+    
+    std::vector<std::string>::iterator it=args.begin();
+    for(;it!=args.end();it++){
+        size_t out_size = 0;
+        char* err = 0;
+        
+        char* out = leveldb_get(connection->server->db, connection->server->read_options,
+                                it->c_str(), it->size(), &out_size, &err);
+
+        if(err) {
+            puts(err);
+            out = 0;
+        }
+
+        if(!out) {
+            write(connection->fd, "$-1\r\n", 5);
+        } else {
+            char buf[256];
+            buf[0] = '$';
+            int count = sprintf(buf + 1, "%ld", out_size);
+            
+            write(connection->fd, buf, count + 1);
+            write(connection->fd, "\r\n", 2);
+            write(connection->fd, out, out_size);
+            write(connection->fd, "\r\n", 2);
+            
+            free(out);
+        }
+    }
+}
+
+
+void RLRequest::rl_mset(){
+    
+    char* err = 0;
+    
+    for(int i=0;i<args.size();i+=2){
+        leveldb_put(connection->server->db, connection->server->write_options,
+                    args[i].c_str(), args[i].size(),
+                    args[i+1].c_str(), args[i+1].size(), &err);        
+        if(err) puts(err);
+    }
+    connection->write_status("OK");
+}
+
+
+
+
+
 
