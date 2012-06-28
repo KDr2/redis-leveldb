@@ -27,19 +27,7 @@ git submodule update
 Install
 ------------------------------------------------------------
 
-[LIVEV=LIBEV_PREFIX GMP=GMP_PREFIX] make
+[LIBEV=LIBEV_PREFIX GMP=GMP_PREFIX] make
 ./redis-leveldb -h
-
-
-=======
-make
-
-Usage:
-    ./redis-leveldb [options]
-Options:
-    -d:      daemon
-    -H host-ip:  listen host
-    -P port:     listen port
-    -D data-dir:     data dir
 
     
