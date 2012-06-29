@@ -344,7 +344,8 @@ void RLRequest::rl_keys(){
 
     std::vector<std::string> keys;
     size_t arg_len=args[0].size();
-    if(arg_len>0 && args[0][arg_len-1]=='*'){
+    bool allkeys = (arg_len==1 && args[0][0]=='*');
+    if(allkeys || (arg_len>0 && args[0].find('*')!=std::string::npos)){
         leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
                                                           connection->server->read_options);
         const char *key;
@@ -352,7 +353,7 @@ void RLRequest::rl_keys(){
         leveldb_iter_seek_to_first(kit);
         while(leveldb_iter_valid(kit)) {
             key = leveldb_iter_key(kit, &key_len);
-            if (strncmp(key, args[0].c_str(), arg_len-1) == 0) {
+            if(allkeys || stringmatchlen(args[0].c_str(),arg_len,key,key_len,0)){
                 keys.push_back(std::string(key,key_len));
             }
             leveldb_iter_next(kit);
