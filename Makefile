@@ -10,13 +10,16 @@ else
 endif
 
 CFLAGS += -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include -std=c99
-CXXFLAGS += -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include -g
+CXXFLAGS += -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include 
 LDFLAGS += vendor/libleveldb.a -lm -L$(LIBEV)/lib -lev -L$(GMP)/lib -lgmp
 
 ifeq ($(uname_S),Linux)
   LDFLAGS += -lpthread
 endif
 
+ifeq ($(DEBUG),1)
+  CXXFLAGS += -g -DDEBUG
+endif
 
 redis-leveldb: redis-leveldb.c \
 		vendor/libleveldb.a
@@ -30,7 +33,7 @@ rlx: $(OBJS) vendor/libleveldb.a
 
 
 clean:
-	rm redis-leveldb *.o
+	rm redis-leveldb rlx *.o
 
 distclean: clean
 	rm vendor/*.a

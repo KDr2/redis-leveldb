@@ -40,28 +40,29 @@ void RLRequest::append_arg(std::string arg)
 
 void RLRequest::_run()
 {
-        if(name=="incr")
-            rl_incr();
-        if(name=="incrby")
-            rl_incrby();
-        if(name=="get")
-            rl_get();
-        if(name=="set")
-            rl_set();
-        if(name=="mget")
-            rl_mget();
-        if(name=="mset")
-            rl_mset();
-        if(name=="multi")
-            rl_multi();
-        if(name=="exec")
-            rl_exec();
-        if(name=="discard")
-            rl_discard();
-    
+    if(name=="incr")
+        rl_incr();
+    if(name=="incrby")
+        rl_incrby();
+    if(name=="get")
+        rl_get();
+    if(name=="set")
+        rl_set();
+    if(name=="mget")
+        rl_mget();
+    if(name=="mset")
+        rl_mset();
+    if(name=="multi")
+        rl_multi();
+    if(name=="exec")
+        rl_exec();
+    if(name=="discard")
+        rl_discard();
+#ifdef DEBUG
     printf("Request Name:%s\n",name.c_str());
     for(std::vector<std::string>::iterator it=args.begin();it!=args.end();it++)
         printf("Request arg:%s\n",it->c_str());
+#endif
 }
 
 void RLRequest::run()
