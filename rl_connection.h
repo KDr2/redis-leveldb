@@ -25,14 +25,15 @@ class RLConnection{
     
 public:
     bool open;
-    RLServer *server;    
     int fd;                     
+    RLServer *server;
+    RLRequest *current_request;
+    RLRequest *transaction;
 
     char *next_idx;        /* next val to handle*/
     int buffered_data;   /* data has been read */
     char read_buffer[READ_BUFFER];
-    RLRequest *current_request;
-    RLRequest *transaction;
+    char write_buffer[64];
     
     ev_io write_watcher;      
     ev_io read_watcher;       
@@ -50,12 +51,14 @@ public:
     size_t get_int();
     int  do_read();
     void do_request();
-    
+
+    void write_nil();
     void write_error(const char* msg);
     void write_status(const char* msg);
-    void write_nil();
+    void write_integer(const char *out, size_t out_size);
+    void write_bulk(const char *out, size_t out_size);
     void write_bulk(std::string &str);
-    void write_bulk(std::vector<std::string> &data);
+    void write_mbulk_header(int n);
 };
 
 #endif

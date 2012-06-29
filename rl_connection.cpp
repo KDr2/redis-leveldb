@@ -182,6 +182,10 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
     /* rl_connection_schedule_close(connection); */
 }
 
+
+void RLConnection::write_nil(){
+    write(fd, "$-1\r\n", 5);
+}
     
 void RLConnection::write_error(const char* msg){
     write(fd, "-", 1);
@@ -195,7 +199,31 @@ void RLConnection::write_status(const char* msg){
     write(fd, "\r\n", 2);
 }
 
-void RLConnection::write_nil(){
-    write(fd, "$-1\r\n", 5);
+void RLConnection::write_integer(const char *out, size_t out_size){
+    write(fd, ":", 1);
+    write(fd, out, out_size);
+    write(fd, "\r\n", 2);
 }
+
+void RLConnection::write_bulk(const char *out, size_t out_size){
+    write_buffer[0] = '$';
+    int count = sprintf(write_buffer + 1, "%ld", out_size);            
+    write(fd, write_buffer, count + 1);
+    write(fd, "\r\n", 2);
+    write(fd, out, out_size);
+    write(fd, "\r\n", 2);
+}
+
+void RLConnection::write_bulk(std::string &out){
+    write_bulk(out.c_str(), out.size());
+}
+
+void RLConnection::write_mbulk_header(int n){
+    write_buffer[0] = '*';
+    int count = sprintf(write_buffer + 1, "%d", n);
+    write(fd, write_buffer, count + 1);
+    write(fd, "\r\n", 2);
+
+}
+
 

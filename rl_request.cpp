@@ -124,9 +124,7 @@ void RLRequest::rl_incr(){
         return;
     }
 
-    write(connection->fd, ":", 1);
-    write(connection->fd, str_newv, strlen(str_newv));
-    write(connection->fd, "\r\n", 2);
+    connection->write_integer(str_newv, strlen(str_newv));
     free(str_newv);
 }
 
@@ -178,9 +176,7 @@ void RLRequest::rl_incrby(){
         return;
     }
 
-    write(connection->fd, ":", 1);
-    write(connection->fd, str_newv, strlen(str_newv));
-    write(connection->fd, "\r\n", 2);
+    connection->write_integer(str_newv, strlen(str_newv));
     free(str_newv);
 }
 
@@ -201,15 +197,7 @@ void RLRequest::rl_get(){
     if(!out) {
         connection->write_nil();
     } else {
-        char buf[256];
-        buf[0] = '$';
-        int count = sprintf(buf + 1, "%ld", out_size);
-      
-        write(connection->fd, buf, count + 1);
-        write(connection->fd, "\r\n", 2);
-        write(connection->fd, out, out_size);
-        write(connection->fd, "\r\n", 2);
-      
+        connection->write_bulk(out, out_size);      
         free(out);
     }
   
@@ -232,11 +220,7 @@ void RLRequest::rl_set(){
 
 void RLRequest::rl_mget(){
 
-    char buf[256];
-    buf[0] = '*';
-    int count = sprintf(buf + 1, "%ld", args.size());
-    write(connection->fd, buf, count + 1);
-    write(connection->fd, "\r\n", 2);
+    connection->write_mbulk_header(args.size());
     
     std::vector<std::string>::iterator it=args.begin();
     for(;it!=args.end();it++){
@@ -254,15 +238,7 @@ void RLRequest::rl_mget(){
         if(!out) {
             connection->write_nil();
         } else {
-            char buf[256];
-            buf[0] = '$';
-            int count = sprintf(buf + 1, "%ld", out_size);
-            
-            write(connection->fd, buf, count + 1);
-            write(connection->fd, "\r\n", 2);
-            write(connection->fd, out, out_size);
-            write(connection->fd, "\r\n", 2);
-            
+            connection->write_bulk(out, out_size);
             free(out);
         }
     }
@@ -302,12 +278,8 @@ void RLRequest::rl_exec(){
 
     std::vector<RLRequest*> tsub=connection->transaction->subrequest;
     std::vector<RLRequest*>::iterator it=tsub.begin();
-    
-    char buf[256];
-    buf[0] = '*';
-    int count = sprintf(buf + 1, "%ld", tsub.size());
-    write(connection->fd, buf, count + 1);
-    write(connection->fd, "\r\n", 2);
+
+    connection->write_mbulk_header(tsub.size());
     
     for(;it!=tsub.end();it++)
         (**it)._run();    
