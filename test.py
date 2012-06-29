@@ -43,7 +43,7 @@ def pipeline_test():
 def press_test():
     for i in range(10000):
         key = 'foo_%d'%i
-        print r.set(key, 'b'*(i))
+        r.set(key, 'b'*i)
         if i%100==0:
             print key, "->", len(r.get(key))
 

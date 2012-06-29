@@ -22,7 +22,7 @@
 
 
 RLConnection::RLConnection(RLServer *s, int fd):
-    fd(fd), buffered_data(0), server(s)
+    fd(fd), server(s), buffered_data(0)
 {
 
     next_idx = read_buffer;
@@ -106,7 +106,7 @@ int RLConnection::do_read(){
         }
         // 3. read a arg
         if(current_request->arg_count>=0 &&
-           current_request->args.size()<current_request->arg_count){
+           current_request->arg_count - current_request->args.size()>0){
             CHECK_BUFFER(4);
             if(*next_idx++ != '$') return -1;
             int len=get_int();
@@ -116,7 +116,7 @@ int RLConnection::do_read(){
         }
         // 4. do the request
         if(current_request->arg_count>=0 && 
-           current_request->arg_count == current_request->args.size()){
+           current_request->arg_count - current_request->args.size()==0){
             do_request();
             if(next_idx>=(read_buffer+buffered_data)){
                 buffered_data=0;

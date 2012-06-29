@@ -5,6 +5,9 @@
  *
  */
 
+#include <algorithm>
+#include <functional>
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,7 +85,7 @@ void RLRequest::run()
         if(connection->transaction){
             _run();
         }else{
-            connection->write_error("ERR EXEC without MULTI");
+            connection->write_error("ERR EXEC/DISCARD without MULTI");
         }
         return;
     }
@@ -158,7 +161,6 @@ void RLRequest::rl_incrby(){
         out = 0;
     }
 
-    
     mpz_t delta;
     mpz_init(delta);
     mpz_set_str(delta,args[1].c_str(),10);
@@ -284,7 +286,7 @@ void RLRequest::rl_mset(){
 
     char* err = 0;
     
-    for(int i=0;i<args.size();i+=2){
+    for(uint32_t i=0;i<args.size();i+=2){
         leveldb_put(connection->server->db, connection->server->write_options,
                     args[i].c_str(), args[i].size(),
                     args[i+1].c_str(), args[i+1].size(), &err);        
@@ -312,12 +314,9 @@ void RLRequest::rl_exec(){
     }
 
     std::vector<RLRequest*> tsub=connection->transaction->subrequest;
-    std::vector<RLRequest*>::iterator it=tsub.begin();
 
-    connection->write_mbulk_header(tsub.size());
-    
-    for(;it!=tsub.end();it++)
-        (**it)._run();    
+    connection->write_mbulk_header(tsub.size());    
+    std::for_each(tsub.begin(),tsub.end(),std::mem_fun(&RLRequest::_run));
     delete connection->transaction;
     connection->transaction=NULL;
 }
@@ -332,9 +331,5 @@ void RLRequest::rl_discard(){
     connection->transaction=NULL;
     connection->write_status("OK");
 }
-
-
-
-
 
 

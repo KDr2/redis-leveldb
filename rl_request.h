@@ -31,7 +31,7 @@ public:
     void append_arg(std::string arg);
     void _run();
     void run();
-    bool completed(){return arg_count==args.size();}
+    bool completed(){return arg_count>=0 && arg_count-args.size()==0;}
 
     static std::map<std::string,COMMAND> cmd_map;
     static void init_cmd_map();
