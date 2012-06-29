@@ -61,7 +61,7 @@ public:
     void write_status(const char* msg);
     void write_integer(const char *out, size_t out_size);
     void write_bulk(const char *out, size_t out_size);
-    void write_bulk(std::string &str);
+    void write_bulk(const std::string &out);
     void write_mbulk_header(int n);
 };
 

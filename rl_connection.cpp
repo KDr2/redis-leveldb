@@ -219,7 +219,7 @@ void RLConnection::write_bulk(const char *out, size_t out_size){
     write(fd, "\r\n", 2);
 }
 
-void RLConnection::write_bulk(std::string &out){
+void RLConnection::write_bulk(const std::string &out){
     write_bulk(out.c_str(), out.size());
 }
 
