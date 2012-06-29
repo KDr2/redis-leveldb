@@ -62,11 +62,9 @@ size_t RLConnection::get_int() {
         val *= 10;
         val += (*b++ - '0');
     }
-    if(b<=(read_buffer+buffered_data)){
-        if(val>0){
-            b += 2;
-            next_idx = b;
-        }
+    if(b<=(read_buffer+buffered_data-1)){
+        b += 2;
+        next_idx = b;
         return val;
     }
     return -1;
