@@ -43,13 +43,13 @@ def pipeline_test():
 def press_test():
     for i in range(10000):
         key = 'foo_%d'%i
-        print r.set(key, 'b'*(i%1000+1))
+        print r.set(key, 'b'*(i))
         if i%100==0:
             print key, "->", len(r.get(key))
 
 if __name__=="__main__":
-    functional_test()
-    #press_test()
+    #functional_test()
+    press_test()
     #pipeline_test()
 
 

@@ -29,17 +29,12 @@ git submodule update
 Compile
 ------------------------------------------------------------
 
-[LIBEV=LIBEV_PREFIX GMP=GMP_PREFIX] make rlx
+[LIBEV=LIBEV_PREFIX GMP=GMP_PREFIX DEBUG=1] make
 
 Run
 ------------------------------------------------------------
 
-./rlx -h
+./redis-leveldb -h
 
-
-Note
-------------------------------------------------------------
-
-rlx is an Alpha version still in development, and not well tested.
 
     

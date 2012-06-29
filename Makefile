@@ -21,19 +21,15 @@ ifeq ($(DEBUG),1)
   CXXFLAGS += -g -DDEBUG
 endif
 
-redis-leveldb: redis-leveldb.c \
-		vendor/libleveldb.a
-	gcc -Wall $(CFLAGS) -c -o redis-leveldb.o -O0 -ggdb redis-leveldb.c
-	g++ -o redis-leveldb redis-leveldb.o $(LDFLAGS)
 
 OBJS = rl_util.o rl_server.o rl_connection.o rl_request.o rl.o
 
-rlx: $(OBJS) vendor/libleveldb.a
+redis-leveldb: $(OBJS) vendor/libleveldb.a
 	$(CXX) $(LDFLAGS) $^ $(LIBS) -o $@
 
 
 clean:
-	rm redis-leveldb rlx *.o
+	rm redis-leveldb *.o
 
 distclean: clean
 	rm vendor/*.a
