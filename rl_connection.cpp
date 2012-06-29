@@ -79,13 +79,11 @@ void RLConnection::do_request(){
             delete current_request;
             current_request=NULL;
         }
-        buffered_data=0;
-        next_idx=read_buffer;
     }
 }
 
 int RLConnection::do_read(){
-    while(next_idx<read_buffer+buffered_data){
+    while(next_idx<(read_buffer+buffered_data)){
         if(!current_request)current_request=new RLRequest(this);
         // 1. read the arg count:
         if(current_request->arg_count<0){
@@ -118,13 +116,18 @@ int RLConnection::do_read(){
             current_request->append_arg(std::string(next_idx,len));
             next_idx+=len+2;
         }
+        // 4. do the request
+        if(current_request->arg_count>=0 && 
+           current_request->arg_count == current_request->args.size()){
+            do_request();
+            if(next_idx>=(read_buffer+buffered_data)){
+                buffered_data=0;
+                next_idx=read_buffer;
+                return 1;
+            }
+        }
     }
-    // 4. do the request
-    if(current_request->arg_count>=0 && 
-       current_request->arg_count == current_request->args.size()){
-        do_request();
-        return 1;
-    }
+
     // 5. done
     return 0;
 }
