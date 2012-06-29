@@ -20,8 +20,8 @@ Dependencies
    install with apt-get or port please.
 
 3. leveldb:
-
-git clone git@github.com:appwilldev/redis-leveldb.git
+   
+git clone git://github.com/appwilldev/redis-leveldb.git
 cd redis-leveldb
 git submodule init
 git submodule update

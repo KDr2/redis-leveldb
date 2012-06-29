@@ -185,7 +185,11 @@ void RLRequest::rl_incrby(){
 }
 
 void RLRequest::rl_get(){
-    
+
+    if(args.size()!=1){
+        connection->write_error("ERR wrong number of arguments for 'get' command");
+        return;
+    }
     
     size_t out_size = 0;
     char* err = 0;
@@ -209,7 +213,12 @@ void RLRequest::rl_get(){
 
 
 void RLRequest::rl_set(){
-    
+
+    if(args.size()!=2){
+        connection->write_error("ERR wrong number of arguments for 'set' command");
+        return;
+    }
+
     char* err = 0;
 
     leveldb_put(connection->server->db, connection->server->write_options,
@@ -223,6 +232,11 @@ void RLRequest::rl_set(){
 
 
 void RLRequest::rl_mget(){
+    
+    if(args.size()<1){
+        connection->write_error("ERR wrong number of arguments for 'mget' command");
+        return;
+    }
 
     connection->write_mbulk_header(args.size());
     
@@ -251,6 +265,11 @@ void RLRequest::rl_mget(){
 
 void RLRequest::rl_mset(){
     
+    if(args.size()<2 && args.size()%2!=0){
+        connection->write_error("ERR wrong number of arguments for 'mset' command");
+        return;
+    }
+
     char* err = 0;
     
     for(int i=0;i<args.size();i+=2){
