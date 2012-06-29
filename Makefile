@@ -9,8 +9,8 @@ else
   GMP?=/usr
 endif
 
-CFLAGS += -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include -std=c99
-CXXFLAGS += -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include 
+CFLAGS += -Wall -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include -std=c99
+CXXFLAGS += -Wall -I$(LIBEV)/include -I$(GMP)/include -Ivendor/leveldb/include
 LDFLAGS += vendor/libleveldb.a -lm -L$(LIBEV)/lib -lev -L$(GMP)/lib -lgmp
 
 ifeq ($(uname_S),Linux)
