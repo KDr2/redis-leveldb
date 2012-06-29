@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+import sys
 import redis
 import time
 
@@ -23,14 +26,17 @@ def functional_test():
     print r.get("incrby_key")
 
     # mset/mget
-    print r.mset({"key0": 'a'*10000, "key1": "b"*1000})
-    print r.mget("key0","key1", "key3", "key4")
+    print r.mset({"key0": 'a'*100, "key1": "b"*10, "中文key": "中文Value"})
+    values = r.mget("key0","key1", "key3", "key4", "中文key")
+    for v in values:
+        sys.stdout.write(str(v)+", ")
+    print ""
 
 def pipeline_test():
     # transaction: multi/exec/discard
     pipe = r.pipeline()
-    pipe.set('foo', 'bar')
-    pipe.get('bing')
+    pipe.set('foo1', 'bar')
+    pipe.get('foo1')
     print pipe.execute()
 
 
@@ -42,8 +48,8 @@ def press_test():
             print key, "->", len(r.get(key))
 
 if __name__=="__main__":
-    #functional_test()
+    functional_test()
     #press_test()
-    pipeline_test()
+    #pipeline_test()
 
 
