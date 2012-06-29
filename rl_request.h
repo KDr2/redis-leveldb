@@ -9,12 +9,16 @@
 #define _RL_REQUEST_H_INCLUDED
 
 #include <vector>
+#include <map>
 #include <string>
 
 class RLConnection;
 
 class RLRequest{
 public:
+
+    typedef void (RLRequest::*COMMAND)();
+    
     RLConnection *connection;
     int8_t arg_count;
     std::string name;
@@ -29,7 +33,12 @@ public:
     void run();
     bool completed(){return arg_count==args.size();}
 
+    static std::map<std::string,COMMAND> cmd_map;
+    static void init_cmd_map();
+                             
     /** the db opers **/
+    void rl_dummy();
+    
     void rl_get();
     void rl_set();
 

@@ -20,6 +20,22 @@
 #include "rl_request.h"
 
 
+std::map<std::string,RLRequest::COMMAND> RLRequest::cmd_map;
+
+void RLRequest::init_cmd_map()
+{
+    RLRequest::cmd_map["incr"]=&RLRequest::rl_incr;
+    RLRequest::cmd_map["incrby"]=&RLRequest::rl_incrby;
+    RLRequest::cmd_map["get"]=&RLRequest::rl_get;
+    RLRequest::cmd_map["set"]=&RLRequest::rl_set;
+    RLRequest::cmd_map["mget"]=&RLRequest::rl_mget;
+    RLRequest::cmd_map["mset"]=&RLRequest::rl_mset;
+    RLRequest::cmd_map["multi"]=&RLRequest::rl_multi;
+    RLRequest::cmd_map["exec"]=&RLRequest::rl_exec;
+    RLRequest::cmd_map["discard"]=&RLRequest::rl_discard;
+}
+
+
 RLRequest::RLRequest(RLConnection *c):
     connection(c), arg_count(-1), name("")
 {
@@ -40,29 +56,20 @@ void RLRequest::append_arg(std::string arg)
 
 void RLRequest::_run()
 {
-    if(name=="incr")
-        rl_incr();
-    if(name=="incrby")
-        rl_incrby();
-    if(name=="get")
-        rl_get();
-    if(name=="set")
-        rl_set();
-    if(name=="mget")
-        rl_mget();
-    if(name=="mset")
-        rl_mset();
-    if(name=="multi")
-        rl_multi();
-    if(name=="exec")
-        rl_exec();
-    if(name=="discard")
-        rl_discard();
+
 #ifdef DEBUG
     printf("Request Name:%s\n",name.c_str());
     for(std::vector<std::string>::iterator it=args.begin();it!=args.end();it++)
         printf("Request arg:%s\n",it->c_str());
 #endif
+    
+    std::map<std::string,COMMAND>::iterator it=cmd_map.find(name);
+    if(it!=cmd_map.end()){
+        (this->*(it->second))();
+    }else{
+        rl_dummy();
+    }
+    
 }
 
 void RLRequest::run()
@@ -87,6 +94,10 @@ void RLRequest::run()
     }else{
         _run();
     }
+}
+
+void RLRequest::rl_dummy(){
+    connection->write_error("ERR unknown command");
 }
 
 void RLRequest::rl_incr(){
