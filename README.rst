@@ -14,17 +14,19 @@ Redis COMMAND Supported
 Dependencies
 ------------------------------------------------------------
 1. libev:
+   
    install with apt-get or port please.
    
 2. gmp(http://gmplib.org/):
+   
    install with apt-get or port please.
 
 3. leveldb:
    
-git clone git://github.com/appwilldev/redis-leveldb.git
-cd redis-leveldb
-git submodule init
-git submodule update
+  #. git clone git://github.com/appwilldev/redis-leveldb.git
+  #. cd redis-leveldb
+  #. git submodule init
+  #. git submodule update
 
 Compile
 ------------------------------------------------------------
