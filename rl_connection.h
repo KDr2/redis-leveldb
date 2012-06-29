@@ -32,7 +32,8 @@ public:
     int buffered_data;   /* data has been read */
     char read_buffer[READ_BUFFER];
     RLRequest *current_request;
-
+    RLRequest *transaction;
+    
     ev_io write_watcher;      
     ev_io read_watcher;       
     ev_timer timeout_watcher; 

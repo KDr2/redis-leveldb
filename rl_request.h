@@ -16,7 +16,7 @@ class RLConnection;
 class RLRequest{
 public:
     RLConnection *connection;
-    uint8_t arg_count;
+    int8_t arg_count;
     std::string name;
     std::vector<std::string> args;
     std::vector<RLRequest*> subrequest; /* for MULTI */
@@ -25,6 +25,7 @@ public:
     RLRequest(RLConnection *c);
     ~RLRequest();
     void append_arg(std::string arg);
+    void _run();
     void run();
     bool completed(){return arg_count==args.size();}
 

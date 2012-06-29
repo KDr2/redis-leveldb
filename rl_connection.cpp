@@ -29,6 +29,7 @@ RLConnection::RLConnection(RLServer *s, int fd):
     set_nonblock(fd);
     open=true;
     current_request=NULL;
+    transaction=NULL;
     //memcpy(sockaddr, &addr, addr_len);
     //ip = inet_ntoa(sockaddr.sin_addr);  
 }
@@ -70,8 +71,10 @@ size_t RLConnection::get_int() {
 void RLConnection::do_request(){
     if(current_request && current_request->completed()){
         current_request->run();
-        delete current_request;
-        current_request=NULL;
+        if(current_request){
+            delete current_request;
+            current_request=NULL;
+        }
         buffered_data=0;
         next_idx=read_buffer;
     }
@@ -81,7 +84,7 @@ int RLConnection::do_read(){
     while(next_idx<read_buffer+buffered_data){
         if(!current_request)current_request=new RLRequest(this);
         // 1. read the arg count:
-        if(current_request->arg_count==0){
+        if(current_request->arg_count<0){
             CHECK_BUFFER(4);
             if(*next_idx++ != '*') return -1;
             current_request->arg_count=get_int();
@@ -91,7 +94,7 @@ int RLConnection::do_read(){
             current_request->arg_count--;
         }
         // 2. read the request name
-        if(current_request->arg_count>0 && current_request->name.empty()){
+        if(current_request->arg_count>=0 && current_request->name.empty()){
             CHECK_BUFFER(4);
             if(*next_idx++ != '$') return -1;
             int len=get_int();
@@ -102,7 +105,7 @@ int RLConnection::do_read(){
             next_idx+=len+2;
         }
         // 3. read a arg
-        if(current_request->arg_count>0 &&
+        if(current_request->arg_count>=0 &&
            current_request->args.size()<current_request->arg_count){
             CHECK_BUFFER(4);
             if(*next_idx++ != '$') return -1;
@@ -113,7 +116,7 @@ int RLConnection::do_read(){
         }
     }
     // 4. do the request
-    if(current_request->arg_count>0 && 
+    if(current_request->arg_count>=0 && 
        current_request->arg_count == current_request->args.size()){
         do_request();
         return 1;
@@ -192,5 +195,7 @@ void RLConnection::write_status(const char* msg){
     write(fd, "\r\n", 2);
 }
 
-
+void RLConnection::write_nil(){
+    write(fd, "$-1\r\n", 5);
+}
 

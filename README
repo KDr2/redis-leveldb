@@ -3,19 +3,21 @@
 Redis-LevelDB
 ============================================================
 
+Redis COMMAND Supported
+------------------------------------------------------------
+
+* incr/incrby
+* get/set
+* mget/mset
+* multi/exec/discard
+
 Dependencies
 ------------------------------------------------------------
 1. libev:
-
-wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
-tar vfxz libev-4.11.tar.gz
-cd libev-4.11
-./configure [--prefix=/usr/local]
-make
-make install
-
-2. gmp:
-   http://gmplib.org/
+   install with apt-get or port please.
+   
+2. gmp(http://gmplib.org/):
+   install with apt-get or port please.
 
 3. leveldb:
 
@@ -24,10 +26,20 @@ cd redis-leveldb
 git submodule init
 git submodule update
 
-Install
+Compile
 ------------------------------------------------------------
 
-[LIBEV=LIBEV_PREFIX GMP=GMP_PREFIX] make
-./redis-leveldb -h
+[LIBEV=LIBEV_PREFIX GMP=GMP_PREFIX] make rlx
+
+Run
+------------------------------------------------------------
+
+./rlx -h
+
+
+Note
+------------------------------------------------------------
+
+rlx is a a Alpha version still in development, and not well tested.
 
     

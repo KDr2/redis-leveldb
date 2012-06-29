@@ -17,7 +17,7 @@
 
 
 RLRequest::RLRequest(RLConnection *c):
-    connection(c), arg_count(0), name("")
+    connection(c), arg_count(-1), name("")
 {
 }
 
@@ -34,26 +34,55 @@ void RLRequest::append_arg(std::string arg)
     args.push_back(arg);
 }
 
-void RLRequest::run()
+void RLRequest::_run()
 {
-    if(name=="incr")
-        rl_incr();
-    if(name=="incrby")
-        rl_incrby();
-    if(name=="get")
-        rl_get();
-    if(name=="set")
-        rl_set();
-    if(name=="mget")
-        rl_mget();
-    if(name=="mset")
-        rl_mset();
+        if(name=="incr")
+            rl_incr();
+        if(name=="incrby")
+            rl_incrby();
+        if(name=="get")
+            rl_get();
+        if(name=="set")
+            rl_set();
+        if(name=="mget")
+            rl_mget();
+        if(name=="mset")
+            rl_mset();
+        if(name=="multi")
+            rl_multi();
+        if(name=="exec")
+            rl_exec();
+        if(name=="discard")
+            rl_discard();
     
     printf("Request Name:%s\n",name.c_str());
     for(std::vector<std::string>::iterator it=args.begin();it!=args.end();it++)
         printf("Request arg:%s\n",it->c_str());
 }
 
+void RLRequest::run()
+{
+    if(name=="multi"){
+        _run();
+        return;
+    }
+    if(name=="exec"||name=="discard"){
+        if(connection->transaction){
+            _run();
+        }else{
+            connection->write_error("ERR EXEC without MULTI");
+        }
+        return;
+    }
+    
+    if(connection->transaction){
+        connection->transaction->subrequest.push_back(this);
+        connection->current_request=NULL;
+        connection->write_status("QUEUED");
+    }else{
+        _run();
+    }
+}
 
 void RLRequest::rl_incr(){
 
@@ -170,7 +199,7 @@ void RLRequest::rl_get(){
     }
 
     if(!out) {
-        write(connection->fd, "$-1\r\n", 5);
+        connection->write_nil();
     } else {
         char buf[256];
         buf[0] = '$';
@@ -223,7 +252,7 @@ void RLRequest::rl_mget(){
         }
 
         if(!out) {
-            write(connection->fd, "$-1\r\n", 5);
+            connection->write_nil();
         } else {
             char buf[256];
             buf[0] = '$';
@@ -250,6 +279,50 @@ void RLRequest::rl_mset(){
                     args[i+1].c_str(), args[i+1].size(), &err);        
         if(err) puts(err);
     }
+    connection->write_status("OK");
+}
+
+
+void RLRequest::rl_multi(){
+    if(connection->transaction){
+        connection->write_error("ERR MULTI calls can not be nested");
+        return;
+    }
+    connection->transaction=this;
+    connection->current_request=NULL;
+    connection->write_status("OK");
+}
+
+
+void RLRequest::rl_exec(){
+    if(!connection->transaction){
+        connection->write_error("ERR EXEC without MULTI");
+        return;
+    }
+
+    std::vector<RLRequest*> tsub=connection->transaction->subrequest;
+    std::vector<RLRequest*>::iterator it=tsub.begin();
+    
+    char buf[256];
+    buf[0] = '*';
+    int count = sprintf(buf + 1, "%ld", tsub.size());
+    write(connection->fd, buf, count + 1);
+    write(connection->fd, "\r\n", 2);
+    
+    for(;it!=tsub.end();it++)
+        (**it)._run();    
+    delete connection->transaction;
+    connection->transaction=NULL;
+}
+
+void RLRequest::rl_discard(){
+    if(!connection->transaction){
+        connection->write_error("ERR DISCARD without MULTI");
+        return;
+    }
+
+    delete connection->transaction;
+    connection->transaction=NULL;
     connection->write_status("OK");
 }
 
