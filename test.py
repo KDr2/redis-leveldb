@@ -18,13 +18,20 @@ def functional_test():
     print r.set("incrby_key",0)
     print r.get("incrby_key")
     print r.incr('incrby_key',1111)
+    print r.incr('incrby_key',2222)
+    print r.incr('incrby_key',3333)
     print r.get("incrby_key")
 
     # mset/mget
-    print r.mset({"key0": 'a', "key1": "b"})
-    print r.mget("key0","key1")
+    print r.mset({"key0": 'a'*10000, "key1": "b"*1000})
+    print r.mget("key0","key1", "key3", "key4")
 
+def pipeline_test():
     # transaction: multi/exec/discard
+    pipe = r.pipeline()
+    pipe.set('foo', 'bar')
+    pipe.get('bing')
+    print pipe.execute()
 
 
 def press_test():
@@ -35,8 +42,8 @@ def press_test():
             print key, "->", len(r.get(key))
 
 if __name__=="__main__":
-    functional_test()
-    press_test()
-
+    #functional_test()
+    #press_test()
+    pipeline_test()
 
 
