@@ -265,7 +265,7 @@ void RLRequest::rl_mget(){
 
 void RLRequest::rl_mset(){
     
-    if(args.size()<2 && args.size()%2!=0){
+    if(args.size()<2 || args.size()%2!=0){
         connection->write_error("ERR wrong number of arguments for 'mset' command");
         return;
     }
