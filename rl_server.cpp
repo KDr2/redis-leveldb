@@ -5,6 +5,11 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h> /* TCP_NODELAY */
 #include <netinet/in.h>  /* inet_ntoa */
