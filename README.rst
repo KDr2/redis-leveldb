@@ -10,7 +10,8 @@ Redis COMMAND Supported
 * get/set
 * mget/mset
 * multi/exec/discard
-
+* keys
+  
 Dependencies
 ------------------------------------------------------------
 1. libev:

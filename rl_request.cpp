@@ -36,6 +36,7 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["multi"]=&RLRequest::rl_multi;
     RLRequest::cmd_map["exec"]=&RLRequest::rl_exec;
     RLRequest::cmd_map["discard"]=&RLRequest::rl_discard;
+    RLRequest::cmd_map["keys"]=&RLRequest::rl_keys;
 }
 
 
@@ -331,5 +332,53 @@ void RLRequest::rl_discard(){
     connection->transaction=NULL;
     connection->write_status("OK");
 }
+
+
+
+void RLRequest::rl_keys(){
+    
+    if(args.size()!=1){
+        connection->write_error("ERR wrong number of arguments for 'keys' command");
+        return;
+    }
+
+    std::vector<std::string> keys;
+    size_t arg_len=args[0].size();
+    if(arg_len>0 && args[0][arg_len-1]=='*'){
+        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
+                                                          connection->server->read_options);
+        const char *key;
+        size_t key_len;
+        leveldb_iter_seek_to_first(kit);
+        while(leveldb_iter_valid(kit)) {
+            key = leveldb_iter_key(kit, &key_len);
+            if (strncmp(key, args[0].c_str(), arg_len-1) == 0) {
+                keys.push_back(std::string(key,key_len));
+            }
+            leveldb_iter_next(kit);
+        }
+        leveldb_iter_destroy(kit);
+    }else if(arg_len>0){
+        size_t out_size = 0;
+        char* err = 0;
+
+        char* out = leveldb_get(connection->server->db, connection->server->read_options,
+                                args[0].c_str(), args[0].size(), &out_size, &err);
+
+        if(err)out = 0;        
+        if(out){
+            keys.push_back(args[0]);
+            free(out);
+        }
+    }else{
+        keys.push_back("");
+    }
+    
+    connection->write_mbulk_header(keys.size());
+    //std::for_each(keys.begin(), keys.end(), std::bind1st(std::mem_fun(&RLConnection::write_bulk),connection));
+    std::vector<std::string>::iterator it=keys.begin();
+    while(it!=keys.end())connection->write_bulk(*it++);
+}
+
 
 

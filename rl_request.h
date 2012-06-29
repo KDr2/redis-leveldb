@@ -51,6 +51,8 @@ public:
     void rl_multi();
     void rl_exec();
     void rl_discard();
+
+    void rl_keys();
     
 };
 
