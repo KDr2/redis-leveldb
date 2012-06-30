@@ -1,3 +1,7 @@
 redis-leveldb
 *.a
 *.o
+redis.db
+tmp_*
+*.db
+.DS_Store

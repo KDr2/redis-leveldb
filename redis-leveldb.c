@@ -1,3 +1,11 @@
+
+/*
+ * for strdup/getopt on linux
+ */
+#ifdef __linux
+#define _XOPEN_SOURCE 800
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,18 +13,23 @@
 #include <assert.h>
 #include <time.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #include <sys/socket.h>
 #include <netinet/tcp.h> /* TCP_NODELAY */
 #include <netinet/in.h>  /* inet_ntoa */
 #include <arpa/inet.h>   /* inet_ntoa */
 
+#include <gmp.h>
+
 #include <ev.h>
 
 #include <leveldb/c.h>
 
 #define MAX_CONNECTIONS 1024
-#define READ_BUFFER 8192
+#define READ_BUFFER 81920
+
+#define CHECK_BUFFER(pos,con) do{if(((pos)-con->read_buffer)>con->buffered_data)return(0);}while(0)
 
 typedef struct rl_server {
   struct ev_loop* loop;
@@ -50,29 +63,42 @@ static void error(const char* s) {
   puts(s);
 }
 
+static int cmp_ignore_case(const char* a, const char* b, size_t s)
+{
+  for (size_t i=0; i<s; i++) {
+    if(tolower(a[i])==tolower(b[i])) {
+      continue;
+    } else {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static size_t get_int(char** i) {
   char* b = *i;
-
-  size_t val = 0, pos = 1;
-
+  size_t val = 0;
   while(*b != '\r') {
-    val *= pos;
+    val *= 10;
     val += (*b++ - '0');
-    pos *= 10;
+    /*
+     * the len may be not read completed now
+     * if so, return a big int to make CHECK_BUFFER return 0
+     */
+    if(val>READ_BUFFER) return READ_BUFFER;
   }
-
   b += 2;
-
   *i = b;
-
   return val;
 }
 
 static int get(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+3,c); /* 3: at least 1 num, fllowed by '\r\n'*/
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
-
+  CHECK_BUFFER(b+size+1,c);
+  
   size_t out_size = 0;
   char* err = 0;
 
@@ -115,10 +141,12 @@ static void write_status(int fd, const char* msg) {
 }
 
 static int inc(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+3,c);
   if(*b++ != '$') return -1;
 
   size_t size = get_int(&b);
-
+  CHECK_BUFFER(b+size+1,c);
+  
   size_t out_size = 0;
   char* err = 0;
 
@@ -130,63 +158,43 @@ static int inc(rl_connection* c, char* b) {
     out = 0;
   }
 
-  if(!out) out = strdup("0");
-
-  int done = 0;
-
-  for(int i = out_size - 1; i >= 0; i--) {
-    switch(out[i]) {
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-        out[i]++;
-        done = 1;
-        break;
-      case '9':
-        out[i] = '0';
-        break;
-      default:
-        write_error(c->fd, "bad key type");
-        return 1;
-    }
-
-    if(done) break;
+  char *str_oldv=NULL;
+  if(!out){
+    str_oldv = strdup("0");
+  }else{
+    str_oldv=malloc(out_size+1);
+    memcpy(str_oldv,out,out_size);
+    str_oldv[out_size]=0;
+    free(out);
   }
 
-  if(!done) {
-    realloc(out, out_size + 1);
-    memmove(out + 1, out, out_size);
-    out[0] = '1';
-
-    out_size++;
-  }
+  mpz_t old_v;
+  mpz_init(old_v);
+  mpz_set_str(old_v,str_oldv,10);
+  free(str_oldv);
+  mpz_add_ui(old_v,old_v,1);
+  char *str_newv=mpz_get_str(NULL,10,old_v);
+  mpz_clear(old_v);
 
   leveldb_put(c->server->db, c->server->write_options,
-                          b, size,
-                          out, out_size, &err);
+              b, size,
+              str_newv, strlen(str_newv), &err);
 
   if(err) {
-    free(out);
     write_error(c->fd, err);
+    free(str_newv);
     return 1;
   }
 
   write(c->fd, ":", 1);
-  write(c->fd, out, out_size);
+  write(c->fd, str_newv, strlen(str_newv));
   write(c->fd, "\r\n", 2);
-
-  free(out);
-
+  free(str_newv);
   return 1;
 }
 
 static int set(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+3,c);
   if(*b++ != '$') return -1;
 
   size_t key_size = get_int(&b);
@@ -195,11 +203,15 @@ static int set(rl_connection* c, char* b) {
   b += key_size;
   b += 2;
 
+  CHECK_BUFFER(b+3,c);
+  
   if(*b++ != '$') return -1;
 
   size_t val_size = get_int(&b);
-  char* val = b;
 
+  CHECK_BUFFER(b+val_size+1,c);
+  
+  char* val = b;
   char* err = 0;
 
   key[key_size] = 0;
@@ -216,25 +228,102 @@ static int set(rl_connection* c, char* b) {
   return 1;
 }
 
+static int incrby(rl_connection* c, char* b) {
+  CHECK_BUFFER(b+3,c);
+  if(*b++ != '$') return -1;
+
+  size_t size = get_int(&b);
+  CHECK_BUFFER(b+size,c);
+  
+  size_t out_size = 0;
+  char* err = 0;
+
+  char* out = leveldb_get(c->server->db, c->server->read_options,
+                          b, size, &out_size, &err);
+
+  if(err) {
+    error(err);
+    out = 0;
+  }
+
+  // get val
+  char *n_b = b;
+  n_b += size;
+  n_b += 2;
+
+  CHECK_BUFFER(n_b+2,c);
+  if(*n_b++ != '$') return -1;
+
+  size_t val_size = get_int(&n_b);
+  char* val = n_b; 
+  CHECK_BUFFER(n_b+val_size+1,c);
+  val[val_size] = 0;
+
+  mpz_t delta;
+  mpz_init(delta);
+  mpz_set_str(delta,val,10);
+
+  char *str_oldv=NULL;
+  if(!out){
+    str_oldv = strdup("0");
+  }else{
+    str_oldv=malloc(out_size+1);
+    memcpy(str_oldv,out,out_size);
+    str_oldv[out_size]=0;
+    free(out);
+  }
+
+  mpz_t old_v;
+  mpz_init(old_v);
+  mpz_set_str(old_v,str_oldv,10);
+  free(str_oldv);
+  mpz_add(old_v,old_v,delta);
+  char *str_newv=mpz_get_str(NULL,10,old_v);
+  mpz_clear(delta);
+  mpz_clear(old_v);
+  
+  leveldb_put(c->server->db, c->server->write_options,
+              b, size,
+              str_newv, strlen(str_newv), &err);
+
+  if(err) {
+    write_error(c->fd, err);
+    free(str_newv);
+    return 1;
+  }
+
+  write(c->fd, ":", 1);
+  write(c->fd, str_newv, strlen(str_newv));
+  write(c->fd, "\r\n", 2);
+  free(str_newv);
+  return 1;
+}
+
+
 static int handle(rl_connection* c) {
   char* b = c->read_buffer;
 
+  CHECK_BUFFER(b+2,c);
   if(*b++ != '*') return -1;
 
   size_t count = get_int(&b);
-
+  
+  //check command elements
+  CHECK_BUFFER(b+count,c);
+  
   switch(count) {
   case 2: {
     if(*b++ != '$') return -1;
 
     size_t size = get_int(&b);
-
+    CHECK_BUFFER(b+size+2,c);
+    
     if(size == 3) {
-      if(memcmp(b, "get", 3) == 0) {
+      if(cmp_ignore_case(b, "get", 3) == 0) {
         return get(c, b + 5);
       }
     } else if(size == 4) {
-      if(memcmp(b, "incr", 4) == 0) {
+      if(cmp_ignore_case(b, "incr", 4) == 0) {
         return inc(c, b + 6);
       }
     }
@@ -247,13 +336,19 @@ static int handle(rl_connection* c) {
     if(*b++ != '$') return -1;
 
     size_t size = get_int(&b);
-
-    if(size == 3 && memcmp(b, "set", 3) == 0) {
+    CHECK_BUFFER(b+size+2,c);
+    
+    if(size == 3 && cmp_ignore_case(b, "set", 3) == 0) {
       b += size;
       b += 2;
 
       return set(c, b);
-    } else {
+    }else if(size == 6 && cmp_ignore_case(b, "incrby", 6) == 0) {
+      b += size;
+      b += 2;
+
+      return incrby(c, b);
+    }else {
       write_error(c->fd, "unknown command");
     }
     break;
@@ -293,6 +388,7 @@ on_readable(struct ev_loop *loop, ev_io *watcher, int revents)
   if(recved == 0) {
     ev_io_stop(loop, &connection->read_watcher);
     close(connection->fd);
+    free(connection);
     return;
   }
 
@@ -333,7 +429,8 @@ rl_connection* new_connection(rl_server* s, int fd) {
   connection->server = s;
   connection->ip = NULL;
   connection->open = 0;
-
+  connection->buffered_data = 0;
+  
   /* ev_init(&connection->write_watcher, on_writable); */
   /* connection->write_watcher.data = connection; */
 
@@ -351,7 +448,7 @@ rl_connection* new_connection(rl_server* s, int fd) {
 
 int server_listen_on_fd(rl_server* s, int fd);
 
-int make_server(rl_server* s, const int port) {
+int make_server(rl_server* s, const char *hostaddr, const int port) {
   int fd = -1;
   struct linger ling = {0, 0};
   struct sockaddr_in addr;
@@ -379,7 +476,15 @@ int make_server(rl_server* s, const int port) {
   
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  if(hostaddr){
+    addr.sin_addr.s_addr = inet_addr(hostaddr);
+    if(addr.sin_addr.s_addr==INADDR_NONE){
+      printf("Bad address(%s) to listen\n",hostaddr);
+      exit(1);
+    }
+  }else{
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  }
   
   if(bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("bind()");
@@ -458,7 +563,35 @@ on_connection(struct ev_loop *loop, ev_io *watcher, int revents) {
   ev_io_start(s->loop, &connection->read_watcher);
 }
 
-int main(int argc, char** argv) {
+int daemon_init(void) 
+{ 
+    pid_t pid;
+    if((pid = fork()) < 0) {
+        return -1; 
+    } else if(pid != 0) {
+        exit(0); //parent exit
+    }
+
+    /* child continues */ 
+    setsid(); /* become session leader */ 
+    //chdir("/"); /* change working directory */ 
+    
+    umask(0); /* clear file mode creation mask */ 
+    close(0); /* close stdin */ 
+    close(1); /* close stdout */ 
+    close(2); /* close stderr */ 
+    
+    return 0;
+}
+
+void sig_term(int signo) { 
+    if(signo == SIGTERM) /* catched signal sent by kill(1) command */ 
+    { 
+        exit(0); 
+    } 
+} 
+
+int run_server(const char *db_path, const char *hostaddr, int port) {
   rl_server s;
 
   s.options = leveldb_options_create();
@@ -469,7 +602,7 @@ int main(int argc, char** argv) {
 
   char* err = 0;
 
-  s.db = leveldb_open(s.options, "redis.db", &err);
+  s.db = leveldb_open(s.options, db_path, &err);
   if(err) {
     puts(err);
     return 1;
@@ -480,9 +613,74 @@ int main(int argc, char** argv) {
 
   ev_init(&s.connection_watcher, on_connection);
 
-  make_server(&s, 8323);
+  make_server(&s, hostaddr, port);
 
   ev_run(s.loop, 0);
 
   return 0;
 }
+
+extern char *optarg;
+int main(int argc, char** argv) {
+  int daemon_flag = 0, ch;
+
+  int opt_host=0;
+  char hostaddr[64];
+  memset(hostaddr,0,64);
+
+  int port=8323;
+
+  char data_dir[128];
+  memset(data_dir,0,128);
+  strncpy(data_dir,"redis.db",8);
+  
+  while ((ch = getopt(argc, argv, "hdH:P:D:")) != -1) {
+    switch (ch) {
+    case 'h':
+      printf("Usage:\n\t./redis-leveldb [options]\n");
+      printf("Options:\n\t-d:\t\t daemon\n");
+      printf("\t-H host-ip:\t listen host\n");
+      printf("\t-P port:\t listen port\n");
+      printf("\t-D data-dir:\t data dir\n");
+      exit(0);
+    case 'd':
+      daemon_flag = 1;
+      break;
+    case 'H':
+      strcpy(hostaddr,optarg);
+      opt_host=1;
+      break;
+    case 'P':
+      port=(int)strtol(optarg, (char **)NULL, 10);
+      if(!port){
+        printf("Bad port(-P) value\n");
+        exit(1);
+      }
+      break;
+    case 'D':
+      strcpy(data_dir,optarg);
+      break;
+    default:
+      break;
+    }
+  }
+  
+  if(daemon_flag){
+    if(daemon_init() == -1) { 
+      printf("can't fork self\n"); 
+      exit(0);
+    }
+  }
+  
+  signal(SIGTERM, sig_term); /* arrange to catch the signal */
+  signal(SIGPIPE, SIG_IGN);
+  while(1) {
+    if(opt_host){
+      run_server(data_dir, hostaddr, port);
+    }else{
+      run_server(data_dir, NULL, port);
+    }
+  } 
+  return 0;
+}
+
