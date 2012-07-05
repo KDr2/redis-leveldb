@@ -53,6 +53,8 @@ public:
     void rl_discard();
 
     void rl_keys();
+
+    void rl_info();
     
 };
 

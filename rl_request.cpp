@@ -5,6 +5,8 @@
  *
  */
 
+#include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <functional>
 
@@ -37,6 +39,7 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["exec"]=&RLRequest::rl_exec;
     RLRequest::cmd_map["discard"]=&RLRequest::rl_discard;
     RLRequest::cmd_map["keys"]=&RLRequest::rl_keys;
+    RLRequest::cmd_map["info"]=&RLRequest::rl_info;
 }
 
 
@@ -367,6 +370,45 @@ void RLRequest::rl_keys(){
     //std::for_each(keys.begin(), keys.end(), std::bind1st(std::mem_fun(&RLConnection::write_bulk),connection));
     std::vector<std::string>::iterator it=keys.begin();
     while(it!=keys.end())connection->write_bulk(*it++);
+}
+
+
+
+void RLRequest::rl_info(){
+    
+    if(args.size()!=0){
+        connection->write_error("ERR wrong number of arguments for 'info' command");
+        return;
+    }
+
+    std::ostringstream info;
+    char *out=NULL;
+    uint64_t key_num=0;
+    leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
+                                                      connection->server->read_options);
+
+    leveldb_iter_seek_to_first(kit);
+    while(leveldb_iter_valid(kit)){
+        key_num++;
+        leveldb_iter_next(kit);
+    }
+    leveldb_iter_destroy(kit);
+
+    info<< "keys:" << key_num <<"\r\n";
+    
+    out=leveldb_property_value(connection->server->db,"leveldb.stats");
+    if(out){
+        info<< "stats:" << out <<"\r\n";
+        free(out);
+    }
+    /*
+    out=leveldb_property_value(connection->server->db,"leveldb.sstables");
+    if(out){
+        info<< "sstables:" << out <<"\r\n";
+        free(out);
+    }
+    */
+    connection->write_bulk(info.str());
 }
 
 

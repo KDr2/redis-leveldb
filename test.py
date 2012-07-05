@@ -35,8 +35,10 @@ def functional_test():
 def pipeline_test():
     # transaction: multi/exec/discard
     pipe = r.pipeline()
-    pipe.set('foo1', 'bar')
-    pipe.get('foo1')
+    for i in range(10):
+        pipe.set('foo1', 'bar')
+        pipe.get('foo1')
+        pipe.incr("c")
     print pipe.execute()
 
 
@@ -49,7 +51,7 @@ def press_test():
 
 if __name__=="__main__":
     #functional_test()
-    press_test()
-    #pipeline_test()
+    #press_test()
+    pipeline_test()
 
 
