@@ -35,7 +35,7 @@ def functional_test():
 def pipeline_test():
     # transaction: multi/exec/discard
     pipe = r.pipeline()
-    for i in range(5500):
+    for i in range(30000):
         pipe.set('foo1', 'bar')
         pipe.get('foo1')
         pipe.incr("c")

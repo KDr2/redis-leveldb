@@ -87,6 +87,12 @@ void RLRequest::run()
         return;
     }
     if(name=="exec"||name=="discard"){
+        
+#ifdef DEBUG
+        printf("Subrequest Number in this Transaction:%ld\n",
+               connection->transaction->subrequest.size());
+#endif
+        
         if(connection->transaction){
             _run();
         }else{

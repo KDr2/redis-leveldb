@@ -91,8 +91,9 @@ void RLConnection::do_request(){
 }
 
 int RLConnection::do_read(){
+    char *old_ni=next_idx;
     while(next_idx<(read_buffer+buffered_data)){
-        char *old_ni=next_idx;
+        old_ni=next_idx;
         if(!current_request)current_request=new RLRequest(this);
         // 1. read the arg count:
         if(current_request->arg_count<0){
@@ -137,9 +138,10 @@ int RLConnection::do_read(){
             }
         }
     }
-
+    old_ni=next_idx;
+    CHECK_BUFFER(1);
     // 5. done
-    return 0;
+    return 1;
 }
 
 void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents)
@@ -240,7 +242,5 @@ void RLConnection::write_mbulk_header(int n){
     int count = sprintf(write_buffer + 1, "%d", n);
     writen(fd, write_buffer, count + 1);
     writen(fd, "\r\n", 2);
-
 }
-
 
