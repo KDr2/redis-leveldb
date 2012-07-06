@@ -10,6 +10,8 @@
 
 void set_nonblock(int fd);
 
+ssize_t writen(int fd, const void *vptr, size_t n);
+
 int daemon_init(void);
 
 void sig_term(int signo);

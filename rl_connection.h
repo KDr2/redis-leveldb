@@ -19,11 +19,6 @@
 class RLServer;
 class RLRequest;
 
-#define CHECK_BUFFER(N) do{                                             \
-        if(next_idx+(N)>(read_buffer+buffered_data)){                   \
-            memmove(read_buffer,next_idx,buffered_data-(next_idx-read_buffer)); \
-            buffered_data-=(next_idx-read_buffer);next_idx=read_buffer; \
-            return 0;}}while(0)
 
 class RLConnection{
     

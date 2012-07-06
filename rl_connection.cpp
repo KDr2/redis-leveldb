@@ -20,6 +20,14 @@
 #include "rl_connection.h"
 #include "rl_request.h"
 
+#define CHECK_BUFFER(N) do{                                                      \
+        if(next_idx+(N)>(read_buffer+buffered_data)){                            \
+            next_idx=old_ni;                                                     \
+            memmove(read_buffer,next_idx,buffered_data-(next_idx-read_buffer));  \
+            buffered_data-=(next_idx-read_buffer);next_idx=read_buffer;          \
+            read_buffer[buffered_data]=0;                                        \
+            return 0;}}while(0)
+
 
 RLConnection::RLConnection(RLServer *s, int fd):
     fd(fd), server(s), buffered_data(0)
@@ -84,16 +92,15 @@ void RLConnection::do_request(){
 
 int RLConnection::do_read(){
     while(next_idx<(read_buffer+buffered_data)){
+        char *old_ni=next_idx;
         if(!current_request)current_request=new RLRequest(this);
         // 1. read the arg count:
         if(current_request->arg_count<0){
             CHECK_BUFFER(4);
             if(*next_idx++ != '*') return -1;
             current_request->arg_count=get_int();
-            if(current_request->arg_count==0){
-                return 0;
-            }
             current_request->arg_count--;
+            old_ni=next_idx;
         }
         // 2. read the request name
         if(current_request->arg_count>=0 && current_request->name.empty()){
@@ -105,6 +112,7 @@ int RLConnection::do_read(){
             std::transform(current_request->name.begin(), current_request->name.end(),
                            current_request->name.begin(), ::tolower);
             next_idx+=len+2;
+            old_ni=next_idx;
         }
         // 3. read a arg
         if(current_request->arg_count>=0 &&
@@ -115,6 +123,7 @@ int RLConnection::do_read(){
             CHECK_BUFFER(len+2);
             current_request->append_arg(std::string(next_idx,len));
             next_idx+=len+2;
+            old_ni=next_idx;
         }
         // 4. do the request
         if(current_request->arg_count>=0 && 
@@ -123,6 +132,7 @@ int RLConnection::do_read(){
             if(next_idx>=(read_buffer+buffered_data)){
                 buffered_data=0;
                 next_idx=read_buffer;
+                old_ni=next_idx;
                 return 1;
             }
         }
@@ -191,34 +201,34 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
 
 
 void RLConnection::write_nil(){
-    write(fd, "$-1\r\n", 5);
+    writen(fd, "$-1\r\n", 5);
 }
     
 void RLConnection::write_error(const char* msg){
-    write(fd, "-", 1);
-    write(fd, msg, strlen(msg));
-    write(fd, "\r\n", 2);
+    writen(fd, "-", 1);
+    writen(fd, msg, strlen(msg));
+    writen(fd, "\r\n", 2);
 }
 
 void RLConnection::write_status(const char* msg){
-    write(fd, "+", 1);
-    write(fd, msg, strlen(msg));
-    write(fd, "\r\n", 2);
+    writen(fd, "+", 1);
+    writen(fd, msg, strlen(msg));
+    writen(fd, "\r\n", 2);
 }
 
 void RLConnection::write_integer(const char *out, size_t out_size){
-    write(fd, ":", 1);
-    write(fd, out, out_size);
-    write(fd, "\r\n", 2);
+    writen(fd, ":", 1);
+    writen(fd, out, out_size);
+    writen(fd, "\r\n", 2);
 }
 
 void RLConnection::write_bulk(const char *out, size_t out_size){
     write_buffer[0] = '$';
     int count = sprintf(write_buffer + 1, "%ld", out_size);            
-    write(fd, write_buffer, count + 1);
-    write(fd, "\r\n", 2);
-    write(fd, out, out_size);
-    write(fd, "\r\n", 2);
+    writen(fd, write_buffer, count + 1);
+    writen(fd, "\r\n", 2);
+    writen(fd, out, out_size);
+    writen(fd, "\r\n", 2);
 }
 
 void RLConnection::write_bulk(const std::string &out){
@@ -228,8 +238,8 @@ void RLConnection::write_bulk(const std::string &out){
 void RLConnection::write_mbulk_header(int n){
     write_buffer[0] = '*';
     int count = sprintf(write_buffer + 1, "%d", n);
-    write(fd, write_buffer, count + 1);
-    write(fd, "\r\n", 2);
+    writen(fd, write_buffer, count + 1);
+    writen(fd, "\r\n", 2);
 
 }
 
