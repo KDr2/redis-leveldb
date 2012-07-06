@@ -11,7 +11,13 @@ Redis COMMAND Supported
 * mget/mset
 * multi/exec/discard
 * keys
+* info: Different to redis, this info command accepts an flag argument,
+  eg: `info`, `info k`, `info t`, `info kt`
   
+  * default: show leveldb.stat info
+  * k: show the count of all keys
+  * t: show leveldb.sstables info
+
 Dependencies
 ------------------------------------------------------------
 1. libev:

@@ -34,6 +34,7 @@ RLConnection::RLConnection(RLServer *s, int fd):
     open=true;
     current_request=NULL;
     transaction=NULL;
+    server->clients_num++;
     //memcpy(sockaddr, &addr, addr_len);
     //ip = inet_ntoa(sockaddr.sin_addr);  
 }
@@ -44,6 +45,7 @@ RLConnection::~RLConnection()
         ev_io_stop(server->loop, &read_watcher);
         close(fd);
     }
+    server->clients_num--;
 }
 
 void RLConnection::start()

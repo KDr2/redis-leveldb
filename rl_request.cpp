@@ -19,6 +19,7 @@
 
 #include <gmp.h>
 
+#include "rl.h"
 #include "rl_util.h"
 #include "rl_server.h"
 #include "rl_connection.h"
@@ -376,38 +377,47 @@ void RLRequest::rl_keys(){
 
 void RLRequest::rl_info(){
     
-    if(args.size()!=0){
+    if(args.size()>1){
         connection->write_error("ERR wrong number of arguments for 'info' command");
         return;
     }
 
     std::ostringstream info;
     char *out=NULL;
-    uint64_t key_num=0;
-    leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
-                                                      connection->server->read_options);
 
-    leveldb_iter_seek_to_first(kit);
-    while(leveldb_iter_valid(kit)){
-        key_num++;
-        leveldb_iter_next(kit);
-    }
-    leveldb_iter_destroy(kit);
-
-    info<< "keys:" << key_num <<"\r\n";
+    info << "redis_version:redis-leveldb " VERSION_STR "\r\n";
+    info << "data_path:" << connection->server->db_path << "\r\n";
+    info << "clients_num:" << connection->server->clients_num << "\r\n";
     
     out=leveldb_property_value(connection->server->db,"leveldb.stats");
     if(out){
         info<< "stats:" << out <<"\r\n";
         free(out);
     }
-    /*
-    out=leveldb_property_value(connection->server->db,"leveldb.sstables");
-    if(out){
-        info<< "sstables:" << out <<"\r\n";
-        free(out);
+
+    /* kyes num */
+    if(args.size()>0 && args[0].find('k')!=std::string::npos){
+        uint64_t key_num=0;
+        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
+                                                          connection->server->read_options);
+
+        leveldb_iter_seek_to_first(kit);
+        while(leveldb_iter_valid(kit)){
+            key_num++;
+            leveldb_iter_next(kit);
+        }
+        leveldb_iter_destroy(kit);
+        info<< "keys:" << key_num <<"\r\n";
     }
-    */
+
+    /** sstables info */
+    if(args.size()>0 && args[0].find('t')!=std::string::npos){
+        out=leveldb_property_value(connection->server->db,"leveldb.sstables");
+        if(out){
+            info<< "sstables:\r\n" << out <<"\r\n";
+            free(out);
+        }
+    }
     connection->write_bulk(info.str());
 }
 

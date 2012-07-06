@@ -20,7 +20,7 @@
 #include "rl_connection.h"
 
 RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port):
-    db_path(_db_path), hostaddr(_hostaddr), port(_port), fd(-1)
+    db_path(_db_path), hostaddr(_hostaddr), port(_port), fd(-1), clients_num(0)
 {
     options = leveldb_options_create();
     leveldb_options_set_create_if_missing(options, 1);
