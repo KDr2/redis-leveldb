@@ -11,7 +11,7 @@ Redis COMMAND Supported
 * mget/mset
 * multi/exec/discard
 * keys
-* info: Different to redis, this info command accepts an flag argument,
+* info: Different to redis, this info command accepts a flag argument,
   eg: `info`, `info k`, `info t`, `info kt`
   
   * default: show leveldb.stat info
