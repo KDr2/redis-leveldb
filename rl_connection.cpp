@@ -9,8 +9,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
+#include <errno.h>
 #include <assert.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -28,14 +28,19 @@
             read_buffer[buffered_data]=0;                                        \
             return 0;}}while(0)
 
+#define START_WRITER() do{if(!writer_started){writer_started=true;ev_io_start(server->loop, &write_watcher);}}while(0)
 
 RLConnection::RLConnection(RLServer *s, int fd):
-    fd(fd), server(s), buffered_data(0)
+    fd(fd), server(s), buffered_data(0),writer_started(false)
 {
 
     next_idx = read_buffer;
     ev_init(&read_watcher, RLConnection::on_readable);
     read_watcher.data = this;
+
+    ev_init(&write_watcher, RLConnection::on_writable);
+    write_watcher.data = this;
+    
     timeout_watcher.data = this;
     
     set_nonblock(fd);
@@ -58,8 +63,8 @@ RLConnection::~RLConnection()
 
 void RLConnection::start()
 {
-
     ev_io_set(&write_watcher, fd, EV_WRITE);
+    
     ev_io_set(&read_watcher, fd, EV_READ);
     ev_io_start(server->loop, &read_watcher);
 }
@@ -181,6 +186,7 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
     case -1:
         puts("bad protocol error");
         // fallthrough
+        break;
     case 1:
         connection->buffered_data = 0;
         break;
@@ -202,45 +208,94 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
 }
 
 
+int RLConnection::do_write(){
+    size_t nleft=write_buffer.size();
+    ssize_t nwritten=0;
+    const char *ptr=write_buffer.c_str();
+
+    if ((nwritten = write(fd, ptr, nleft)) <= 0) {
+        if (nwritten < 0 && errno == EAGAIN)
+            return 0;
+        else
+            return -1;
+    }
+    write_buffer.erase(0,nwritten);
+    if(write_buffer.size()<=0){
+        writer_started=false;
+        ev_io_stop(server->loop, &write_watcher);
+    }
+    return 1;
+}
+
+
+void RLConnection::on_writable(struct ev_loop *loop, ev_io *watcher, int revents)
+{
+    RLConnection *connection = static_cast<RLConnection*>(watcher->data);
+    int ret = connection->do_write();
+    switch(ret) {
+    case -1:
+        puts("write error");
+        break;
+    case 0:
+        //unwritable
+        break;
+    case 1:
+        //done
+        break;
+    default:
+        puts("unknown return error");
+        break;
+    }
+}
+
 void RLConnection::write_nil(){
-    writen(fd, "$-1\r\n", 5);
+    write_buffer+="$-1\r\n";
+    START_WRITER();
 }
     
 void RLConnection::write_error(const char* msg){
-    writen(fd, "-", 1);
-    writen(fd, msg, strlen(msg));
-    writen(fd, "\r\n", 2);
+    write_buffer+="-";
+    write_buffer+=std::string(msg,strlen(msg));
+    write_buffer+="\r\n";
+    START_WRITER();
 }
 
 void RLConnection::write_status(const char* msg){
-    writen(fd, "+", 1);
-    writen(fd, msg, strlen(msg));
-    writen(fd, "\r\n", 2);
+    write_buffer+="+";
+    write_buffer+=std::string(msg,strlen(msg));
+    write_buffer+="\r\n";
+    START_WRITER();
 }
 
 void RLConnection::write_integer(const char *out, size_t out_size){
-    writen(fd, ":", 1);
-    writen(fd, out, out_size);
-    writen(fd, "\r\n", 2);
+    write_buffer+=":";
+    write_buffer+=std::string(out,out_size);
+    write_buffer+="\r\n";
+    START_WRITER();
 }
 
 void RLConnection::write_bulk(const char *out, size_t out_size){
-    write_buffer[0] = '$';
-    int count = sprintf(write_buffer + 1, "%ld", out_size);            
-    writen(fd, write_buffer, count + 1);
-    writen(fd, "\r\n", 2);
-    writen(fd, out, out_size);
-    writen(fd, "\r\n", 2);
+    char buf[32];
+    int count = sprintf(buf, "%ld", out_size);
+    write_buffer+="$";
+    write_buffer+=std::string(buf,count);
+    write_buffer+="\r\n";
+    write_buffer+=std::string(out,out_size);
+    write_buffer+="\r\n";
+    START_WRITER();
 }
 
 void RLConnection::write_bulk(const std::string &out){
     write_bulk(out.c_str(), out.size());
+    START_WRITER();
 }
 
 void RLConnection::write_mbulk_header(int n){
-    write_buffer[0] = '*';
-    int count = sprintf(write_buffer + 1, "%d", n);
-    writen(fd, write_buffer, count + 1);
-    writen(fd, "\r\n", 2);
+    char buf[32];
+    int count = sprintf(buf, "%d", n);
+    write_buffer+="*";
+    write_buffer+=std::string(buf,count);
+    write_buffer+="\r\n";
+    START_WRITER();
 }
 

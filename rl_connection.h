@@ -32,7 +32,8 @@ public:
     char *next_idx;        /* next val to handle*/
     int buffered_data;   /* data has been read */
     char read_buffer[READ_BUFFER];
-    char write_buffer[64];
+    bool writer_started;
+    std::string write_buffer;
     
     ev_io write_watcher;      
     ev_io read_watcher;       
@@ -45,10 +46,12 @@ public:
     ~RLConnection();
 
     static void on_readable(struct ev_loop *loop, ev_io *watcher, int revents);
+    static void on_writable(struct ev_loop *loop, ev_io *watcher, int revents);
     
     void start();
     size_t get_int();
     int  do_read();
+    int  do_write();
     void do_request();
 
     void write_nil();
