@@ -31,7 +31,7 @@
 #define START_WRITER() do{if(!writer_started){writer_started=true;ev_io_start(server->loop, &write_watcher);}}while(0)
 
 RLConnection::RLConnection(RLServer *s, int fd):
-    fd(fd), server(s), buffered_data(0),writer_started(false)
+    db_index(0), fd(fd), server(s), buffered_data(0),writer_started(false)
 {
 
     next_idx = read_buffer;

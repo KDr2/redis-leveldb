@@ -30,6 +30,7 @@ std::map<std::string,RLRequest::COMMAND> RLRequest::cmd_map;
 
 void RLRequest::init_cmd_map()
 {
+    RLRequest::cmd_map["select"]=&RLRequest::rl_select;
     RLRequest::cmd_map["incr"]=&RLRequest::rl_incr;
     RLRequest::cmd_map["incrby"]=&RLRequest::rl_incrby;
     RLRequest::cmd_map["get"]=&RLRequest::rl_get;
@@ -114,11 +115,35 @@ void RLRequest::rl_dummy(){
     connection->write_error("ERR unknown command");
 }
 
+
+void RLRequest::rl_select(){
+    if(connection->server->db_num<1){
+        connection->write_error("ERR redis-leveldb is running in single-db mode");
+        return;
+    }
+    if(args.size()!=1){
+        connection->write_error("ERR wrong number of arguments for 'select' command");
+        return;
+    }
+    if(std::find_if(args[0].begin(),args[0].end(),
+                    std::not1(std::ptr_fun(isdigit)))!=args[0].end()){
+        connection->write_error("ERR argument for 'select' must be a number");
+        return;
+    }
+    int target=strtol(args[0].c_str(),NULL,10);
+    if(target<0||target>=connection->server->db_num){
+        connection->write_error("ERR invalid DB index");
+        return;
+    }
+    connection->db_index=target;
+    connection->write_status("OK");
+}
+
 void RLRequest::rl_incr(){
 
     size_t out_size = 0;
     char* err = 0;
-    char* out = leveldb_get(connection->server->db, connection->server->read_options,
+    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
                             args[0].c_str(), args[0].size(), &out_size, &err);
 
     if(err) {
@@ -144,7 +169,7 @@ void RLRequest::rl_incr(){
     char *str_newv=mpz_get_str(NULL,10,old_v);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db, connection->server->write_options,
+    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
                 args[0].c_str(), args[0].size(),
                 str_newv, strlen(str_newv), &err);
 
@@ -164,7 +189,7 @@ void RLRequest::rl_incrby(){
     size_t out_size = 0;
     char* err = 0;
 
-    char* out = leveldb_get(connection->server->db, connection->server->read_options,
+    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
                             args[0].c_str(), args[0].size(), &out_size, &err);
 
     if(err) {
@@ -195,7 +220,7 @@ void RLRequest::rl_incrby(){
     mpz_clear(delta);
     mpz_clear(old_v);
     
-    leveldb_put(connection->server->db, connection->server->write_options,
+    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
                 args[0].c_str(), args[0].size(),
                 str_newv, strlen(str_newv), &err);
 
@@ -219,7 +244,7 @@ void RLRequest::rl_get(){
     size_t out_size = 0;
     char* err = 0;
 
-    char* out = leveldb_get(connection->server->db, connection->server->read_options,
+    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
                             args[0].c_str(), args[0].size(), &out_size, &err);
 
     if(err) {
@@ -246,7 +271,7 @@ void RLRequest::rl_set(){
 
     char* err = 0;
 
-    leveldb_put(connection->server->db, connection->server->write_options,
+    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
                 args[0].c_str(), args[0].size(),
                 args[1].c_str(), args[1].size(), &err);
     
@@ -270,7 +295,7 @@ void RLRequest::rl_mget(){
         size_t out_size = 0;
         char* err = 0;
         
-        char* out = leveldb_get(connection->server->db, connection->server->read_options,
+        char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
                                 it->c_str(), it->size(), &out_size, &err);
 
         if(err) {
@@ -298,7 +323,7 @@ void RLRequest::rl_mset(){
     char* err = 0;
     
     for(uint32_t i=0;i<args.size();i+=2){
-        leveldb_put(connection->server->db, connection->server->write_options,
+        leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
                     args[i].c_str(), args[i].size(),
                     args[i+1].c_str(), args[i+1].size(), &err);        
         if(err) puts(err);
@@ -356,7 +381,7 @@ void RLRequest::rl_keys(){
     size_t arg_len=args[0].size();
     bool allkeys = (arg_len==1 && args[0][0]=='*');
     if(arg_len>0){
-        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
+        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
                                                           connection->server->read_options);
         const char *key;
         size_t key_len;
@@ -391,20 +416,30 @@ void RLRequest::rl_info(){
     std::ostringstream info;
     char *out=NULL;
 
-    info << "redis_version:redis-leveldb " VERSION_STR "\r\n";
-    info << "data_path:" << connection->server->db_path << "\r\n";
-    info << "clients_num:" << connection->server->clients_num << "\r\n";
+    info << "redis_version: redis-leveldb " VERSION_STR "\r\n";
+    info << "mode: ";
+    if(connection->server->db_num<1){
+        info << "single\r\n";
+    }else{
+        info << "multi = " << connection->server->db_num;
+        info << "," << connection->db_index << "\r\n";
+    }
+    char *cwd=getcwd(NULL,0);
+    info << "work_dir: " << cwd << "\r\n";
+    free(cwd);
+    info << "data_path: " << connection->server->db_path << "\r\n";
+    info << "clients_num: " << connection->server->clients_num << "\r\n";
     
-    out=leveldb_property_value(connection->server->db,"leveldb.stats");
+    out=leveldb_property_value(connection->server->db[connection->db_index],"leveldb.stats");
     if(out){
-        info<< "stats:" << out <<"\r\n";
+        info<< "stats: " << out <<"\r\n";
         free(out);
     }
 
     /* kyes num */
     if(args.size()>0 && args[0].find('k')!=std::string::npos){
         uint64_t key_num=0;
-        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db,
+        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
                                                           connection->server->read_options);
 
         leveldb_iter_seek_to_first(kit);
@@ -413,12 +448,12 @@ void RLRequest::rl_info(){
             leveldb_iter_next(kit);
         }
         leveldb_iter_destroy(kit);
-        info<< "keys:" << key_num <<"\r\n";
+        info<< "keys: " << key_num <<"\r\n";
     }
 
     /** sstables info */
     if(args.size()>0 && args[0].find('t')!=std::string::npos){
-        out=leveldb_property_value(connection->server->db,"leveldb.sstables");
+        out=leveldb_property_value(connection->server->db[connection->db_index],"leveldb.sstables");
         if(out){
             info<< "sstables:\r\n" << out <<"\r\n";
             free(out);

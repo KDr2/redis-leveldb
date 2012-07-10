@@ -24,6 +24,7 @@ class RLConnection{
     
 public:
     bool open;
+    int db_index;
     int fd;                     
     RLServer *server;
     RLRequest *current_request;

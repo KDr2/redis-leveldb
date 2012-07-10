@@ -20,6 +20,7 @@
 
 extern char *optarg;
 
+RLServer *server=NULL;
 
 int main(int argc, char** argv) {
     int daemon_flag = 0, ch;
@@ -29,14 +30,15 @@ int main(int argc, char** argv) {
     memset(hostaddr,0,64);
 
     int port=8323;
-
+    int db_num=0;
+    
     RLRequest::init_cmd_map();
     
     char data_dir[128];
     memset(data_dir,0,128);
     strncpy(data_dir,"redis.db",8);
   
-    while ((ch = getopt(argc, argv, "hdH:P:D:")) != -1) {
+    while ((ch = getopt(argc, argv, "hdH:P:D:M:")) != -1) {
         switch (ch) {
         case 'h':
             printf("Usage:\n\t./redis-leveldb [options]\n");
@@ -44,6 +46,7 @@ int main(int argc, char** argv) {
             printf("\t-H host-ip:\t listen host\n");
             printf("\t-P port:\t listen port\n");
             printf("\t-D data-dir:\t data dir\n");
+            printf("\t-M number:\t DB count(run in multi-db mode)\n");
             exit(0);
         case 'd':
             daemon_flag = 1;
@@ -62,6 +65,22 @@ int main(int argc, char** argv) {
         case 'D':
             strcpy(data_dir,optarg);
             break;
+        case 'M':
+            if(std::find_if(optarg,optarg+strlen(optarg),
+                            std::not1(std::ptr_fun(isdigit)))!=optarg+strlen(optarg)){
+                printf("Bad DB count(-M) value(must be a num in range [1,256])\n");
+                exit(1);
+            }
+            db_num=strtol(optarg,NULL,10);
+            if(db_num<1 || db_num>256){
+                printf("Bad DB count(-M) value(must be a num in range [1,256])\n");
+                exit(1);
+            }
+            break;
+        case '?':
+            //if(optopt=='H' || optopt=='P' || optopt=='D' || optopt=='M')
+            exit(1);
+            break;
         default:
             break;
         }
@@ -69,22 +88,23 @@ int main(int argc, char** argv) {
   
     if(daemon_flag){
         if(daemon_init() == -1) { 
-            printf("can't fork self\n"); 
-            exit(0);
+            printf("can't run as daemon\n"); 
+            exit(1);
         }
     }
   
-    signal(SIGTERM, sig_term); /* arrange to catch the signal */
+    signal(SIGTERM, sig_term);
+    signal(SIGINT,  sig_term);
     signal(SIGPIPE, SIG_IGN);
-    while(1) {
-        if(opt_host){
-            RLServer s(data_dir, hostaddr, port);
-            s.start();
-        }else{
-            RLServer s(data_dir, "", port);
-            s.start();
-        }
-    } 
+    
+    if(opt_host){
+        server = new RLServer(data_dir, hostaddr, port, db_num);
+        server->start();
+    }else{
+        server = new RLServer(data_dir, "", port, db_num);
+        server->start();
+    }
+
     return 0;
 }
 

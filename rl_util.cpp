@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 
 #include "rl_util.h"
+#include "rl_server.h"
 
 void set_nonblock (int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -45,9 +46,15 @@ int daemon_init(void) {
     return 0;
 }
 
+extern RLServer *server;
+
 void sig_term(int signo) {
-    /* catched signal sent by kill(1) command */ 
-    if(signo == SIGTERM) { 
+    if(signo == SIGTERM || signo==SIGINT) {
+        printf("exiting...\n");
+        if(server){
+            delete server;
+            server=NULL;
+        }
         exit(0); 
     }
 }

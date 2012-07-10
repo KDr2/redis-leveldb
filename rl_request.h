@@ -38,6 +38,8 @@ public:
                              
     /** the db opers **/
     void rl_dummy();
+
+    void rl_select();
     
     void rl_get();
     void rl_set();

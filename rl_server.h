@@ -17,6 +17,7 @@
 class RLServer{
     
 public:
+    int db_num;
     std::string db_path;
     std::string hostaddr;
     int port;
@@ -27,9 +28,9 @@ public:
     leveldb_options_t* options;
     leveldb_readoptions_t* read_options;
     leveldb_writeoptions_t* write_options;
-    leveldb_t* db;
+    leveldb_t **db;
 
-    RLServer(const char *db_path, const char *hostaddr, int port);
+    RLServer(const char *db_path, const char *hostaddr, int port, int dbn=0);
     ~RLServer();
     void start();
     static void on_connection(struct ev_loop *loop, ev_io *watcher, int revents);

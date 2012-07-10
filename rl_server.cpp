@@ -19,26 +19,55 @@
 #include "rl_server.h"
 #include "rl_connection.h"
 
-RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port):
-    db_path(_db_path), hostaddr(_hostaddr), port(_port), fd(-1), clients_num(0)
+RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int dbn):
+    db_num(dbn), db_path(_db_path), hostaddr(_hostaddr), port(_port),
+    fd(-1), clients_num(0)
 {
     options = leveldb_options_create();
     leveldb_options_set_create_if_missing(options, 1);
 
     read_options = leveldb_readoptions_create();
     write_options = leveldb_writeoptions_create();
-
+    
     char* err = 0;
     
-    db = leveldb_open(options, db_path.c_str(), &err);
-    if(err) {
-        puts(err);
-        exit(1);
+    if(db_num<1){
+        db=new leveldb_t*[1];
+        db[0] = leveldb_open(options, db_path.c_str(), &err);
+        if(err) {
+            puts(err);
+            exit(1);
+        }
+    }else{
+        db=new leveldb_t*[db_num];
+        char buf[16];
+        for(int i=0;i<db_num;i++){
+            int count = sprintf(buf, "/db-%03d", i);
+            //TODO the db path
+            db[i] = leveldb_open(options, (db_path+std::string(buf,count)).c_str(), &err);
+            if(err) {
+                puts(err);
+                exit(1);
+            }
+        }
     }
 
     loop = ev_default_loop(0);
     connection_watcher.data = this;
 
+}
+
+RLServer::~RLServer(){
+    if(db_num<1){
+        leveldb_close(db[0]);
+    }else{
+        for(int i=0;i<db_num;i++){
+            leveldb_close(db[i]);
+        }
+    }
+    delete[] db;
+    
+    close(fd);
 }
 
 
@@ -128,7 +157,4 @@ void RLServer::on_connection(struct ev_loop *loop, ev_io *watcher, int revents)
     
 }
 
-RLServer::~RLServer(){
-    //TODO
-}
 
