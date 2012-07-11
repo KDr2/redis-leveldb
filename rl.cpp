@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
+#include <algorithm>
+
 #include "rl_util.h"
 #include "rl_server.h"
 #include "rl_connection.h"
