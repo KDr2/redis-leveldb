@@ -19,14 +19,16 @@
 #include "rl_server.h"
 #include "rl_connection.h"
 
+#define EVBACKEND EVFLAG_AUTO
+
 #ifdef __linux
-  #define EVBACKEND EVBACKEND_EPOLL
-#else
-  #ifdef __APPLE__
-    #define EVBACKEND EVBACKEND_KQUEUE
-  #else
-    #define EVBACKEND EVFLAG_AUTO
-  #endif
+#undef EVBACKEND
+#define EVBACKEND EVBACKEND_EPOLL
+#endif
+
+#ifdef __APPLE__
+#undef EVBACKEND
+#define EVBACKEND EVBACKEND_KQUEUE
 #endif
 
 RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int dbn):
