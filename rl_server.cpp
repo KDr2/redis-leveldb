@@ -78,7 +78,7 @@ RLServer::~RLServer(){
         }
     }
     delete[] db;
-    
+    if(loop) ev_loop_destroy(loop);
     close(fd);
 }
 
