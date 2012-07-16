@@ -19,6 +19,16 @@
 #include "rl_server.h"
 #include "rl_connection.h"
 
+#ifdef __linux
+  #define EVBACKEND EVBACKEND_EPOLL
+#else
+  #ifdef __APPLE__
+    #define EVBACKEND EVBACKEND_KQUEUE
+  #else
+    #define EVBACKEND EVFLAG_AUTO
+  #endif
+#endif
+
 RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int dbn):
     db_num(dbn), db_path(_db_path), hostaddr(_hostaddr), port(_port),
     fd(-1), clients_num(0)
@@ -52,7 +62,7 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
         }
     }
 
-    loop = ev_default_loop(0);
+    loop = ev_loop_new(EVBACKEND);
     connection_watcher.data = this;
 
 }

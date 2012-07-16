@@ -70,12 +70,12 @@ int main(int argc, char** argv) {
         case 'M':
             if(std::find_if(optarg,optarg+strlen(optarg),
                             std::not1(std::ptr_fun(isdigit)))!=optarg+strlen(optarg)){
-                printf("Bad DB count(-M) value(must be a num in range [1,256])\n");
+                printf("Bad DB count(-M) value(must be a num in range [1,%d])\n", MAX_DBCOUNT);
                 exit(1);
             }
             db_num=strtol(optarg,NULL,10);
-            if(db_num<1 || db_num>256){
-                printf("Bad DB count(-M) value(must be a num in range [1,256])\n");
+            if(db_num<1 || db_num>MAX_DBCOUNT){
+                printf("Bad DB count(-M) value(must be a num in range [1,%d])\n", MAX_DBCOUNT);
                 exit(1);
             }
             break;
