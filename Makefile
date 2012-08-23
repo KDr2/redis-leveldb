@@ -25,7 +25,7 @@ endif
 OBJS = rl_util.o rl_server.o rl_connection.o rl_request.o rl.o
 
 redis-leveldb: $(OBJS) vendor/libleveldb.a
-	$(CXX) $(LDFLAGS) $^ $(LIBS) -o $@
+	$(CXX) $^ $(LIBS) $(LDFLAGS) -o $@
 
 
 clean:
