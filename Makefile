@@ -29,10 +29,12 @@ redis-leveldb: $(OBJS) vendor/libleveldb.a
 
 
 clean:
-	rm redis-leveldb *.o
+	-rm redis-leveldb
+	-rm *.o
 
 distclean: clean
-	rm vendor/*.a
+	-rm vendor/*.a
+	cd vendor/leveldb; make clean
 
 vendor/libleveldb.a:
 	cd vendor/leveldb; make && cp libleveldb.a ..
