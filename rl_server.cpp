@@ -58,6 +58,7 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
             //TODO the db path
             db[i] = leveldb_open(options, (db_path+std::string(buf,count)).c_str(), &err);
             if(err) {
+                puts(buf);
                 puts(err);
                 exit(1);
             }
