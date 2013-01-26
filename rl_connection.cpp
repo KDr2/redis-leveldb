@@ -40,16 +40,16 @@ RLConnection::RLConnection(RLServer *s, int fd):
 
     ev_init(&write_watcher, RLConnection::on_writable);
     write_watcher.data = this;
-    
+
     timeout_watcher.data = this;
-    
+
     set_nonblock(fd);
     open=true;
     current_request=NULL;
     transaction=NULL;
     server->clients_num++;
     //memcpy(sockaddr, &addr, addr_len);
-    //ip = inet_ntoa(sockaddr.sin_addr);  
+    //ip = inet_ntoa(sockaddr.sin_addr);
 }
 
 RLConnection::~RLConnection()
@@ -64,7 +64,7 @@ RLConnection::~RLConnection()
 void RLConnection::start()
 {
     ev_io_set(&write_watcher, fd, EV_WRITE);
-    
+
     ev_io_set(&read_watcher, fd, EV_READ);
     ev_io_start(server->loop, &read_watcher);
 }
@@ -132,7 +132,7 @@ int RLConnection::do_read(){
             old_ni=next_idx;
         }
         // 4. do the request
-        if(current_request->arg_count>=0 && 
+        if(current_request->arg_count>=0 &&
            current_request->arg_count - current_request->args.size()==0){
             do_request();
             if(next_idx>=(read_buffer+buffered_data)){
@@ -213,7 +213,7 @@ int RLConnection::do_write(){
     ssize_t nwritten=0;
     const char *ptr=write_buffer.c_str();
 
-    if ((nwritten = write(fd, ptr, nleft)) <= 0) {
+    if ((nwritten = write(fd, ptr, nleft)) < 0) {
         if (nwritten < 0 && errno == EAGAIN)
             return 0;
         else
@@ -252,7 +252,7 @@ void RLConnection::write_nil(){
     write_buffer+="$-1\r\n";
     START_WRITER();
 }
-    
+
 void RLConnection::write_error(const char* msg){
     write_buffer+="-";
     write_buffer+=std::string(msg,strlen(msg));
@@ -298,4 +298,3 @@ void RLConnection::write_mbulk_header(int n){
     write_buffer+="\r\n";
     START_WRITER();
 }
-
