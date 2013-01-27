@@ -214,7 +214,7 @@ int RLConnection::do_write(){
     const char *ptr=write_buffer.c_str();
 
     if ((nwritten = write(fd, ptr, nleft)) < 0) {
-        if (nwritten < 0 && errno == EAGAIN){
+        if (nwritten < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)){
             return 0;
         }else{
             perror("Write Error Msg");
