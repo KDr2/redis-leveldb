@@ -56,6 +56,9 @@ RLConnection::~RLConnection()
 {
     if(open){
         ev_io_stop(server->loop, &read_watcher);
+        if(writer_started){
+            ev_io_stop(server->loop, &write_watcher);
+        }
         close(fd);
     }
     server->clients_num--;
