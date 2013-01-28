@@ -56,6 +56,9 @@ RLConnection::~RLConnection()
 {
     if(open){
         ev_io_stop(server->loop, &read_watcher);
+        if(writer_started){
+            ev_io_stop(server->loop, &write_watcher);
+        }
         close(fd);
     }
     server->clients_num--;
@@ -214,10 +217,14 @@ int RLConnection::do_write(){
     const char *ptr=write_buffer.c_str();
 
     if ((nwritten = write(fd, ptr, nleft)) < 0) {
-        if (nwritten < 0 && errno == EAGAIN)
+        if (nwritten < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)){
             return 0;
-        else
+        }else{
+            perror("Write Error Msg");
+            writer_started=false;
+            ev_io_stop(server->loop, &write_watcher);
             return -1;
+        }
     }
     write_buffer.erase(0,nwritten);
     if(write_buffer.size()<=0){
