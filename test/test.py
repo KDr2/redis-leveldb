@@ -52,6 +52,8 @@ def press_test():
 if __name__=="__main__":
     #functional_test()
     #press_test()
-    pipeline_test()
-
-
+    #pipeline_test()
+    ks = []
+    for x in xrange(230):
+        ks.append("%010d" % x)
+    print(r.mget(ks))
