@@ -18,13 +18,13 @@ class RLRequest{
 public:
 
     typedef void (RLRequest::*COMMAND)();
-    
+
     RLConnection *connection;
-    int8_t arg_count;
+    int32_t arg_count;
     std::string name;
     std::vector<std::string> args;
     std::vector<RLRequest*> subrequest; /* for MULTI */
-    
+
     /**method**/
     RLRequest(RLConnection *c);
     ~RLRequest();
@@ -35,12 +35,12 @@ public:
 
     static std::map<std::string,COMMAND> cmd_map;
     static void init_cmd_map();
-                             
+
     /** the db opers **/
     void rl_dummy();
 
     void rl_select();
-    
+
     void rl_get();
     void rl_set();
 
@@ -49,7 +49,7 @@ public:
 
     void rl_incr();
     void rl_incrby();
-    
+
     void rl_multi();
     void rl_exec();
     void rl_discard();
@@ -57,9 +57,8 @@ public:
     void rl_keys();
 
     void rl_info();
-    
+
 };
 
 
 #endif
-
