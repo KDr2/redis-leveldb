@@ -43,6 +43,7 @@ public:
 
     void rl_get();
     void rl_set();
+    void rl_del();
 
     void rl_mget();
     void rl_mset();
@@ -53,6 +54,11 @@ public:
     void rl_multi();
     void rl_exec();
     void rl_discard();
+
+    void rl_sadd();
+    void rl_srem();
+    void rl_scard();
+    void rl_smembers();
 
     void rl_keys();
 

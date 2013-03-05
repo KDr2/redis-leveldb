@@ -28,7 +28,7 @@ OBJS = rl_util.o rl_server.o rl_connection.o rl_request.o rl.o
 rl_util.o: rl_util.h rl_server.h rl_util.cpp
 rl_server.o: rl_util.h rl_server.h rl_connection.h rl_server.cpp
 rl_connection.o: rl_util.h rl_server.h rl_connection.h rl_request.h rl_connection.cpp
-rl_request.o: rl.h rl_util.h rl_server.h rl_connection.h rl_request.h rl_request.cpp
+rl_request.o: rl.h rl_util.h rl_server.h rl_connection.h rl_compdata.h rl_request.h rl_request.cpp
 rl.o: rl_util.h rl_server.h rl_connection.h rl_request.h rl.cpp
 
 

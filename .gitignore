@@ -5,3 +5,4 @@ redis.db
 *.db
 tmp_*
 .DS_Store
+data/
