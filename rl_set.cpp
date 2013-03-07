@@ -279,3 +279,34 @@ void RLRequest::rl_smembers(){
     std::vector<std::string>::iterator it=keys.begin();
     while(it!=keys.end())connection->write_bulk(*it++);
 }
+
+void RLRequest::rl_sismember(){
+    if(args.size()<2){
+        connection->write_error("ERR wrong number of arguments for 'sismember' command");
+        return;
+    }
+    string &sname = args[0];
+
+    char *out = 0;
+    char *err = 0;
+    size_t out_size = 0;
+
+    string key = _encode_set_kv_key(sname, args[1]);
+
+    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
+          key.data(), key.size(), &out_size, &err);
+    if(err) {
+        puts(err);
+        out = 0;
+    }
+
+    if(!out) {
+        // not a member
+        connection->write_integer("0", 1);
+    } else {
+        free(out);
+        // is a member
+        connection->write_integer("1", 1);
+    }
+
+}

@@ -62,7 +62,7 @@ public:
     void rl_srem();
     void rl_scard();
     void rl_smembers();
-
+    void rl_sismember();
 };
 
 

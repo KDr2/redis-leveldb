@@ -31,23 +31,29 @@ std::map<std::string,RLRequest::COMMAND> RLRequest::cmd_map;
 
 void RLRequest::init_cmd_map()
 {
-    RLRequest::cmd_map["select"]=&RLRequest::rl_select;
-    RLRequest::cmd_map["incr"]=&RLRequest::rl_incr;
-    RLRequest::cmd_map["incrby"]=&RLRequest::rl_incrby;
-    RLRequest::cmd_map["get"]=&RLRequest::rl_get;
-    RLRequest::cmd_map["set"]=&RLRequest::rl_set;
-    RLRequest::cmd_map["del"]=&RLRequest::rl_del;
-    RLRequest::cmd_map["mget"]=&RLRequest::rl_mget;
-    RLRequest::cmd_map["mset"]=&RLRequest::rl_mset;
-    RLRequest::cmd_map["multi"]=&RLRequest::rl_multi;
-    RLRequest::cmd_map["exec"]=&RLRequest::rl_exec;
-    RLRequest::cmd_map["discard"]=&RLRequest::rl_discard;
-    RLRequest::cmd_map["sadd"]=&RLRequest::rl_sadd;
-    RLRequest::cmd_map["srem"]=&RLRequest::rl_srem;
-    RLRequest::cmd_map["scard"]=&RLRequest::rl_scard;
-    RLRequest::cmd_map["smembers"]=&RLRequest::rl_smembers;
-    RLRequest::cmd_map["keys"]=&RLRequest::rl_keys;
-    RLRequest::cmd_map["info"]=&RLRequest::rl_info;
+    /* sys commands */
+    RLRequest::cmd_map["info"]       = &RLRequest::rl_info;
+    RLRequest::cmd_map["keys"]       = &RLRequest::rl_keys;
+    RLRequest::cmd_map["select"]     = &RLRequest::rl_select;
+    RLRequest::cmd_map["multi"]      = &RLRequest::rl_multi;
+    RLRequest::cmd_map["exec"]       = &RLRequest::rl_exec;
+    RLRequest::cmd_map["discard"]    = &RLRequest::rl_discard;
+
+    /* kv commands */
+    RLRequest::cmd_map["incr"]       = &RLRequest::rl_incr;
+    RLRequest::cmd_map["incrby"]     = &RLRequest::rl_incrby;
+    RLRequest::cmd_map["get"]        = &RLRequest::rl_get;
+    RLRequest::cmd_map["set"]        = &RLRequest::rl_set;
+    RLRequest::cmd_map["del"]        = &RLRequest::rl_del;
+    RLRequest::cmd_map["mget"]       = &RLRequest::rl_mget;
+    RLRequest::cmd_map["mset"]       = &RLRequest::rl_mset;
+
+    /* set commands */
+    RLRequest::cmd_map["sadd"]       = &RLRequest::rl_sadd;
+    RLRequest::cmd_map["srem"]       = &RLRequest::rl_srem;
+    RLRequest::cmd_map["scard"]      = &RLRequest::rl_scard;
+    RLRequest::cmd_map["smembers"]   = &RLRequest::rl_smembers;
+    RLRequest::cmd_map["sismember"]  = &RLRequest::rl_sismember;
 }
 
 
