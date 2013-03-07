@@ -54,6 +54,11 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["scard"]      = &RLRequest::rl_scard;
     RLRequest::cmd_map["smembers"]   = &RLRequest::rl_smembers;
     RLRequest::cmd_map["sismember"]  = &RLRequest::rl_sismember;
+
+    /* hash commands */
+    RLRequest::cmd_map["hget"]       = &RLRequest::rl_hget;
+    RLRequest::cmd_map["hset"]       = &RLRequest::rl_hset;
+    RLRequest::cmd_map["hsetnx"]     = &RLRequest::rl_hsetnx;
 }
 
 

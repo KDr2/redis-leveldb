@@ -24,7 +24,7 @@ endif
 all: redis-leveldb
 
 OBJS = rl_util.o rl_server.o rl_connection.o rl.o \
-       rl_request.o rl_kv.o rl_set.o
+       rl_request.o rl_kv.o rl_set.o rl_hash.o
 
 rl_util.o: rl_util.h rl_server.h rl_util.cpp
 rl_server.o: rl_util.h rl_server.h rl_connection.h rl_server.cpp
@@ -32,6 +32,7 @@ rl_connection.o: rl_util.h rl_server.h rl_connection.h rl_request.h rl_connectio
 rl_request.o: rl.h rl_util.h rl_server.h rl_connection.h rl_compdata.h rl_request.h rl_request.cpp
 rl_kv.o: rl.h rl_util.h rl_server.h rl_connection.h rl_request.h rl_kv.cpp
 rl_set.o: rl.h rl_util.h rl_server.h rl_connection.h rl_compdata.h rl_request.h rl_set.cpp
+rl_set.o: rl.h rl_util.h rl_server.h rl_connection.h rl_compdata.h rl_request.h rl_hash.cpp
 rl.o: rl_util.h rl_server.h rl_connection.h rl_request.h rl.cpp
 
 

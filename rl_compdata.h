@@ -15,29 +15,39 @@ struct CompDataType{
         SIZE = 2,
         SET = 3,
         ZSET = 4,
+        HASH = 5,
     };
 };
 
-inline string _encode_compdata_size_key(const string &name){
+inline string _encode_compdata_size_key(const string &name, CompDataType::COM_DATA_TYPE t){
     string ret;
     ret.append(1, (char)CompDataType::SIZE);
+    ret.append(1, (char)t);
     ret.append("size", 4);
     ret.append(1, (uint8_t)name.size());
     ret.append(name.data(), name.size());
     return ret;
 }
 
-inline string _encode_set_kv_key(const string &setname, const string &memname){
+inline string _encode_compdata_key(const string &cname, const string &memname, CompDataType::COM_DATA_TYPE t){
     string ret;
-    ret.append(1, (char)CompDataType::SET);
-    ret.append(1, (uint8_t)setname.size());
-    ret.append(setname.data(), setname.size());
+    ret.append(1, (char)t);
+    ret.append(1, (uint8_t)cname.size());
+    ret.append(cname.data(), cname.size());
     if(memname.size()<1){
         return ret;
     }
     ret.append(1, (uint8_t)memname.size());
     ret.append(memname.data(), memname.size());
     return ret;
+}
+
+inline string _encode_set_key(const string &setname, const string &memname){
+    return _encode_compdata_key(setname, memname, CompDataType::SET);
+}
+
+inline string _encode_hash_key(const string &hname, const string &memname){
+    return _encode_compdata_key(hname, memname, CompDataType::HASH);
 }
 
 inline string _decode_key(const string key){

@@ -36,7 +36,7 @@ public:
     static std::map<std::string,COMMAND> cmd_map;
     static void init_cmd_map();
 
-    /** the db opers **/
+    /** sys commands **/
     void rl_dummy();
     void rl_select();
     void rl_keys();
@@ -46,7 +46,7 @@ public:
     void rl_exec();
     void rl_discard();
 
-    /* kv opers */
+    /* kv commands */
     void rl_get();
     void rl_set();
     void rl_del();
@@ -57,12 +57,23 @@ public:
     void rl_incr();
     void rl_incrby();
 
-    /* set opers*/
+    /* set commands */
     void rl_sadd();
     void rl_srem();
     void rl_scard();
     void rl_smembers();
     void rl_sismember();
+
+    /* hash commands */
+    void rl_hget();
+    void rl_hset();
+    void rl_hsetnx();
+    //void rl_hexists();
+    //void rl_hdel();
+    //void rl_getall();
+    //void rl_hkeys();
+    //void rl_hvals();
+    //void rl_hlen();
 };
 
 

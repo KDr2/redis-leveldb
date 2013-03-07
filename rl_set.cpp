@@ -33,26 +33,15 @@ void RLRequest::rl_sadd(){
         return;
     }
     string &sname = args[0];
-    string sizekey = _encode_compdata_size_key(sname);
-    string set_begin = _encode_set_kv_key(sname, "");
+    string sizekey = _encode_compdata_size_key(sname, CompDataType::SET);
     uint32_t new_mem = 0;
 
     char *out = 0;
     char *err = 0;
     size_t out_size = 0;
 
-    /*
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          set_begin.data(), set_begin.size(), &out_size, &err);
-    if(!out){
-        leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-            set_begin.data(), set_begin.size(), "\1", 1, &err);
-    }
-
-    out = err = 0; out_size = 0;
-    */
     for(uint32_t i=1; i<args.size(); i++){
-        string key = _encode_set_kv_key(sname, args[i]);
+        string key = _encode_set_key(sname, args[i]);
 
         out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
                     key.data(), key.size(), &out_size, &err);
@@ -136,7 +125,7 @@ void RLRequest::rl_srem(){
     }
 
     string &sname = args[0];
-    string sizekey = _encode_compdata_size_key(sname);
+    string sizekey = _encode_compdata_size_key(sname, CompDataType::SET);
     uint32_t del_mem = 0;
 
     char *out = 0;
@@ -144,7 +133,7 @@ void RLRequest::rl_srem(){
     size_t out_size = 0;
 
     for(uint32_t i=1; i<args.size(); i++){
-        string key = _encode_set_kv_key(sname, args[i]);
+        string key = _encode_set_key(sname, args[i]);
 
         out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
               key.data(), key.size(), &out_size, &err);
@@ -228,7 +217,7 @@ void RLRequest::rl_scard(){
         return;
     }
 
-    string sizekey = _encode_compdata_size_key(args[0]);
+    string sizekey = _encode_compdata_size_key(args[0], CompDataType::SET);
     size_t out_size = 0;
     char* err = 0;
     char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
@@ -257,7 +246,7 @@ void RLRequest::rl_smembers(){
     const char *key;
     size_t key_len;
 
-    string set_begin = _encode_set_kv_key(args[0], "");
+    string set_begin = _encode_set_key(args[0], "");
     leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
                               connection->server->read_options);
     leveldb_iter_seek(kit, set_begin.data(), set_begin.size());
@@ -291,7 +280,7 @@ void RLRequest::rl_sismember(){
     char *err = 0;
     size_t out_size = 0;
 
-    string key = _encode_set_kv_key(sname, args[1]);
+    string key = _encode_set_key(sname, args[1]);
 
     out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
           key.data(), key.size(), &out_size, &err);
