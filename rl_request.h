@@ -38,9 +38,15 @@ public:
 
     /** the db opers **/
     void rl_dummy();
-
     void rl_select();
+    void rl_keys();
+    void rl_info();
 
+    void rl_multi();
+    void rl_exec();
+    void rl_discard();
+
+    /* kv opers */
     void rl_get();
     void rl_set();
     void rl_del();
@@ -51,18 +57,11 @@ public:
     void rl_incr();
     void rl_incrby();
 
-    void rl_multi();
-    void rl_exec();
-    void rl_discard();
-
+    /* set opers*/
     void rl_sadd();
     void rl_srem();
     void rl_scard();
     void rl_smembers();
-
-    void rl_keys();
-
-    void rl_info();
 
 };
 
