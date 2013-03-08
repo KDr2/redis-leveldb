@@ -68,12 +68,12 @@ public:
     void rl_hget();
     void rl_hset();
     void rl_hsetnx();
-    //void rl_hexists();
-    //void rl_hdel();
-    //void rl_getall();
-    //void rl_hkeys();
-    //void rl_hvals();
-    //void rl_hlen();
+    void rl_hdel();
+    void rl_hexists();
+    void rl_hgetall();
+    void rl_hkeys();
+    void rl_hvals();
+    void rl_hlen();
 };
 
 

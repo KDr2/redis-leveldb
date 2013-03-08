@@ -59,6 +59,12 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["hget"]       = &RLRequest::rl_hget;
     RLRequest::cmd_map["hset"]       = &RLRequest::rl_hset;
     RLRequest::cmd_map["hsetnx"]     = &RLRequest::rl_hsetnx;
+    RLRequest::cmd_map["hdel"]       = &RLRequest::rl_hdel;
+    RLRequest::cmd_map["hexists"]    = &RLRequest::rl_hexists;
+    RLRequest::cmd_map["hgetall"]    = &RLRequest::rl_hgetall;
+    RLRequest::cmd_map["hkeys"]      = &RLRequest::rl_hkeys;
+    RLRequest::cmd_map["hvals"]      = &RLRequest::rl_hvals;
+    RLRequest::cmd_map["hlen"]       = &RLRequest::rl_hlen;
 }
 
 
