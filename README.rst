@@ -5,7 +5,7 @@ Redis-LevelDB
 
 A redis frontend to google's leveldb: Use leveldb as a Redis-Server.
 
-Current Version: 1.3(development).
+Current Version: 1.4(stable).
 
 Redis COMMAND Supported
 ------------------------------------------------------------
