@@ -21,11 +21,11 @@ class RLRequest;
 
 
 class RLConnection{
-    
+
 public:
     bool open;
     int db_index;
-    int fd;                     
+    int fd;
     RLServer *server;
     RLRequest *current_request;
     RLRequest *transaction;
@@ -35,20 +35,20 @@ public:
     char read_buffer[READ_BUFFER];
     bool writer_started;
     std::string write_buffer;
-    
-    ev_io write_watcher;      
-    ev_io read_watcher;       
-    ev_timer timeout_watcher; 
-    ev_timer goodbye_watcher; 
+
+    ev_io write_watcher;
+    ev_io read_watcher;
+    ev_timer timeout_watcher;
+    ev_timer goodbye_watcher;
 
     /*** methods ***/
-    
+
     RLConnection(RLServer *s, int fd);
     ~RLConnection();
 
     static void on_readable(struct ev_loop *loop, ev_io *watcher, int revents);
     static void on_writable(struct ev_loop *loop, ev_io *watcher, int revents);
-    
+
     void start();
     size_t get_int();
     int  do_read();
@@ -65,4 +65,3 @@ public:
 };
 
 #endif
-
