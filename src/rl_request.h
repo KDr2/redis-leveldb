@@ -80,6 +80,7 @@ public:
     void rl_lpop();
     void rl_rpush();
     void rl_rpop();
+    void rl_llen();
 };
 
 #define RL_GET(key_data, key_size, out_size, err) leveldb_get(connection->server->db[connection->db_index], \

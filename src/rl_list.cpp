@@ -36,7 +36,7 @@ void RLRequest::rl_lpush(){
     char *out = 0;
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_hash_key(lname, "left");
+    string flag_key = _encode_list_key(lname, "left");
     char *err = 0;
     size_t out_size = 0;
     size_t args_size = args.size();
@@ -48,25 +48,13 @@ void RLRequest::rl_lpush(){
     }
 
     if(!out) {
-        string key = _encode_hash_key(lname, "right");
-        out = RL_GET(key.data(), key.size(), out_size, err);
-        if(err) {
+        string key = _encode_list_key(lname, "right");
+        RL_SET(key.data(), key.size(), "0", 1, err);
+        if (err) {
             //TODO
         }
 
-        if(out) {
-            long r_index;
-            char *temp = (char *)malloc(out_size + 1);
-            memcpy(temp, out, out_size);
-            temp[out_size] = 0;
-            r_index = atoll(temp);
-            free(temp);
-            free(out);
-            flag_index = r_index - 1;
-        } else {
-            flag_index = 0;
-        }
-
+        flag_index = 0;
     } else {
         char *temp = (char *)malloc(out_size + 1);
         memcpy(temp, out, out_size);
@@ -96,8 +84,6 @@ void RLRequest::rl_lpush(){
     RL_SET(flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s), err);
     if(err) {
         //TODO:
-        connection->write_error(err);
-        return;
     }
 
     sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
@@ -114,7 +100,7 @@ void RLRequest::rl_rpush(){
     char *out = 0;
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_hash_key(lname, "right");
+    string flag_key = _encode_list_key(lname, "right");
     char *err = 0;
     size_t out_size = 0;
     size_t args_size = args.size();
@@ -126,25 +112,13 @@ void RLRequest::rl_rpush(){
     }
 
     if(!out) {
-        string key = _encode_hash_key(lname, "left");
-        out = RL_GET(key.data(), key.size(), out_size, err);
+        string key = _encode_list_key(lname, "left");
+        RL_SET(key.data(), key.size(), "0", 1, err);
         if(err) {
             //TODO
         }
 
-        if(out) {
-            long l_index;
-            char *temp = (char *)malloc(out_size + 1);
-            memcpy(temp, out, out_size);
-            temp[out_size] = 0;
-            l_index = atoll(temp);
-            free(temp);
-            free(out);
-            flag_index = l_index + 1;
-        } else {
-            flag_index = 0;
-        }
-
+        flag_index = 0;
     } else {
         char *temp = (char *)malloc(out_size + 1);
         memcpy(temp, out, out_size);
@@ -174,8 +148,6 @@ void RLRequest::rl_rpush(){
     RL_SET(flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s), err);
     if(err) {
         //TODO:
-        connection->write_error(err);
-        return;
     }
 
     sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
@@ -191,7 +163,7 @@ void RLRequest::rl_lpop(){
     string &lname = args[0];
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_hash_key(lname, "left");
+    string flag_key = _encode_list_key(lname, "left");
     char *out = 0;
     char *err = 0;
     size_t out_size = 0;
@@ -204,9 +176,10 @@ void RLRequest::rl_lpop(){
     }
 
     if(!out) {
-        flag_index = 0;
+        connection->write_nil();
+        return;
     } else {
-        char *temp = (char*)malloc(out_size+1);
+        char *temp = (char*)malloc(out_size + 1);
         memcpy(temp, out, out_size);
         temp[out_size] = 0;
         flag_index = atoll(temp);
@@ -225,19 +198,27 @@ void RLRequest::rl_lpop(){
 
     // delete this member and update left index
     if(out) {
-        sprintf(flag_index_s, "%lld", flag_index + 1);
-        RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
-        if(err) {
-            //TODO
-        }
         connection->write_bulk(out, out_size);
+        free(out);
+
         RL_DEL(key.data(), key.size(), err);
         if(err) {
             //TODO:
         }
-        free(out);
+
+        sprintf(flag_index_s, "%lld", flag_index + 1);
+        key = _encode_list_key(lname, flag_index_s);
+        out = RL_GET(key.data(), key.size(), out_size, err);
+        if (out) {
+            RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
+            free(out);
+        } else {
+            RL_DEL(flag_key.data(), flag_key.size(), err);   
+            flag_key = _encode_list_key(lname, "right");
+            RL_DEL(flag_key.data(), flag_key.size(), err);   
+        }
     } else {
-        connection->write_nil();
+        //TODO: exception
     }
 }
 
@@ -250,22 +231,23 @@ void RLRequest::rl_rpop(){
     string &lname = args[0];
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_hash_key(lname, "right");
+    string flag_key = _encode_list_key(lname, "right");
     char *out = 0;
     char *err = 0;
     size_t out_size = 0;
     string key;
 
-    //get list right index
+    //get list left index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
         //TODO
     }
 
     if(!out) {
-        flag_index = 0;
+        connection->write_nil();
+        return;
     } else {
-        char *temp = (char*)malloc(out_size+1);
+        char *temp = (char*)malloc(out_size + 1);
         memcpy(temp, out, out_size);
         temp[out_size] = 0;
         flag_index = atoll(temp);
@@ -284,19 +266,76 @@ void RLRequest::rl_rpop(){
 
     // delete this member and update right index
     if(out) {
-        sprintf(flag_index_s, "%lld", flag_index - 1);
-        RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
-        if(err) {
-            //TODO
-        }
         connection->write_bulk(out, out_size);
+        free(out);
+
         RL_DEL(key.data(), key.size(), err);
         if(err) {
             //TODO:
         }
-        free(out);
+
+        sprintf(flag_index_s, "%lld", flag_index - 1);
+        key = _encode_list_key(lname, flag_index_s);
+        out = RL_GET(key.data(), key.size(), out_size, err);
+        if (out) {
+            RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
+            free(out);
+        } else {
+            RL_DEL(flag_key.data(), flag_key.size(), err);   
+            flag_key = _encode_list_key(lname, "left");
+            RL_DEL(flag_key.data(), flag_key.size(), err);   
+        }
     } else {
-        connection->write_nil();
+        //TODO: exception   
     }
+}
+
+void RLRequest::rl_llen(){
+    if(args.size() != 1){
+            connection->write_error("ERR wrong number of arguments for 'llen' command");
+            return;
+    }
+
+    string &lname = args[0];
+    int64_t right_index = 0;
+    int64_t left_index = 0;
+    char len[32];
+    char *out = 0;
+    char *err = 0;
+    size_t out_size = 0;
+    string flag_key = _encode_list_key(lname, "right");
+    
+    out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
+    if(err) {
+        //TODO
+    }
+
+    if(!out) {
+        connection->write_integer("0", 1);
+        return;
+    } else {
+        char *temp = (char*)malloc(out_size + 1);
+        memcpy(temp, out, out_size);
+        temp[out_size] = 0;
+        right_index = atoll(temp);
+        free(temp);
+        free(out);
+        
+        flag_key = _encode_list_key(lname, "left");
+        out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
+        if (!out) {
+            //TODO: exception
+        } else {
+            char *temp = (char*)malloc(out_size + 1);
+            memcpy(temp, out, out_size);
+            temp[out_size] = 0;
+            left_index = atoll(temp);
+            free(temp);
+            free(out);
+        }
+    }
+    
+    sprintf(len, "%lld", right_index - left_index + 1);
+    connection->write_integer(len, strlen(len));
 }
 

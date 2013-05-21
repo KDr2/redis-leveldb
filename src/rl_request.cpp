@@ -70,6 +70,7 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["lpop"]      = &RLRequest::rl_lpop;
     RLRequest::cmd_map["rpush"]      = &RLRequest::rl_rpush;
     RLRequest::cmd_map["rpop"]       = &RLRequest::rl_rpop;
+    RLRequest::cmd_map["llen"]       = &RLRequest::rl_llen;
 }
 
 
