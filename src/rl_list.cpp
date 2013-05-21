@@ -59,7 +59,7 @@ void RLRequest::rl_lpush(){
             char *temp = (char *)malloc(out_size + 1);
             memcpy(temp, out, out_size);
             temp[out_size] = 0;
-            r_index = atol(temp);
+            r_index = atoll(temp);
             free(temp);
             free(out);
             flag_index = r_index - 1;
@@ -71,7 +71,7 @@ void RLRequest::rl_lpush(){
         char *temp = (char *)malloc(out_size + 1);
         memcpy(temp, out, out_size);
         temp[out_size] = 0;
-        flag_index = atol(temp) - 1;
+        flag_index = atoll(temp) - 1;
         free(temp);
         free(out);
     }
@@ -119,7 +119,7 @@ void RLRequest::rl_rpush(){
     size_t out_size = 0;
     size_t args_size = args.size();
 
-    //get list left
+    //get list right
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
         //TODO
@@ -137,7 +137,7 @@ void RLRequest::rl_rpush(){
             char *temp = (char *)malloc(out_size + 1);
             memcpy(temp, out, out_size);
             temp[out_size] = 0;
-            l_index = atol(temp);
+            l_index = atoll(temp);
             free(temp);
             free(out);
             flag_index = l_index + 1;
@@ -169,7 +169,7 @@ void RLRequest::rl_rpush(){
         }
     }
 
-    // update left flag
+    // update right flag
     sprintf(flag_index_s, "%lld", flag_index);
     RL_SET(flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s), err);
     if(err) {
@@ -197,7 +197,7 @@ void RLRequest::rl_lpop(){
     size_t out_size = 0;
     string key;
 
-    //get list right index
+    //get list left index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
         //TODO
@@ -223,7 +223,7 @@ void RLRequest::rl_lpop(){
         return;
     }
 
-    // delete this member and update right index
+    // delete this member and update left index
     if(out) {
         sprintf(flag_index_s, "%lld", flag_index + 1);
         RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
