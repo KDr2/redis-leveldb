@@ -65,6 +65,11 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["hkeys"]      = &RLRequest::rl_hkeys;
     RLRequest::cmd_map["hvals"]      = &RLRequest::rl_hvals;
     RLRequest::cmd_map["hlen"]       = &RLRequest::rl_hlen;
+
+    RLRequest::cmd_map["lpush"]      = &RLRequest::rl_lpush;
+    RLRequest::cmd_map["lpop"]      = &RLRequest::rl_lpop;
+    RLRequest::cmd_map["rpush"]      = &RLRequest::rl_rpush;
+    RLRequest::cmd_map["rpop"]       = &RLRequest::rl_rpop;
 }
 
 

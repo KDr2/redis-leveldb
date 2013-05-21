@@ -16,6 +16,7 @@ struct CompDataType{
         SET = 3,
         ZSET = 4,
         HASH = 5,
+        LIST = 6,
     };
 };
 
@@ -44,6 +45,10 @@ inline string _encode_compdata_key(const string &cname, const string &memname, C
 
 inline string _encode_set_key(const string &setname, const string &memname){
     return _encode_compdata_key(setname, memname, CompDataType::SET);
+}
+
+inline string _encode_list_key(const string &listname, const string &memname){
+    return _encode_compdata_key(listname, memname, CompDataType::LIST);
 }
 
 inline string _encode_hash_key(const string &hname, const string &memname){

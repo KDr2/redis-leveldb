@@ -74,7 +74,20 @@ public:
     void rl_hkeys();
     void rl_hvals();
     void rl_hlen();
+
+    /* list commands */
+    void rl_lpush();
+    void rl_lpop();
+    void rl_rpush();
+    void rl_rpop();
 };
 
+#define RL_GET(key_data, key_size, out_size, err) leveldb_get(connection->server->db[connection->db_index], \
+												connection->server->read_options,key_data, key_size, &out_size, &err)
 
+#define RL_SET(key_data, key_size, value_data, value_size, err) leveldb_put(connection->server->db[connection->db_index], \
+								connection->server->write_options, key_data, key_size, value_data, value_size, &err)
+
+#define RL_DEL(key_data, key_size, err) leveldb_delete(connection->server->db[connection->db_index], \
+								connection->server->write_options, key_data, key_size, &err)
 #endif
