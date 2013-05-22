@@ -18,13 +18,15 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-
 #include "rl.h"
 #include "rl_util.h"
 #include "rl_server.h"
 #include "rl_connection.h"
 #include "rl_request.h"
 #include "rl_compdata.h"
+
+#define RIGHT_FLAG "right"
+#define LEFT_FLAG "left"
 
 void RLRequest::rl_lpush(){
     if(args.size()<2){
@@ -36,24 +38,24 @@ void RLRequest::rl_lpush(){
     char *out = 0;
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_list_key(lname, "left");
+    string flag_key = _encode_list_key(lname, LEFT_FLAG);
     char *err = 0;
     size_t out_size = 0;
     size_t args_size = args.size();
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+
     //get list left
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
-        //TODO
+        connection->write_error(err);
+        free(err);
+        return;
     }
 
     if(!out) {
-        string key = _encode_list_key(lname, "right");
-        RL_SET(key.data(), key.size(), "0", 1, err);
-        if (err) {
-            //TODO
-        }
-
+        string key = _encode_list_key(lname, RIGHT_FLAG);
+        leveldb_writebatch_put(write_batch, key.data(), key.size(), "0", 1);
         flag_index = 0;
     } else {
         char *temp = (char *)malloc(out_size + 1);
@@ -68,11 +70,7 @@ void RLRequest::rl_lpush(){
     for (uint32_t i = 1; i < args_size; i++){
         sprintf(flag_index_s, "%lld", flag_index);
         string key = _encode_list_key(lname, flag_index_s);
-
-        RL_SET(key.data(), key.size(), args[i].data(), args[i].size(), err);
-        if(err) {
-           //TODO:
-        }
+        leveldb_writebatch_put(write_batch, key.data(), key.size(), args[i].data(), args[i].size());
 
         if(i + 1 <  args_size) {
             flag_index--;
@@ -81,17 +79,20 @@ void RLRequest::rl_lpush(){
 
     // update left flag
     sprintf(flag_index_s, "%lld", flag_index);
-    RL_SET(flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s), err);
-    if(err) {
-        //TODO:
+    leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
+    
+    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+    if (err) {
+        connection->write_error(err);
+        free(err);
+    } else {
+        sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
+        connection->write_integer(flag_index_s, strlen(flag_index_s));
     }
-
-    sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
-    connection->write_integer(flag_index_s, strlen(flag_index_s));
 }
 
 void RLRequest::rl_rpush(){
-    if(args.size()<2){
+    if(args.size() < 2){
         connection->write_error("ERR wrong number of arguments for 'rpush' command");
         return;
     }
@@ -100,24 +101,24 @@ void RLRequest::rl_rpush(){
     char *out = 0;
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_list_key(lname, "right");
+    string flag_key = _encode_list_key(lname, RIGHT_FLAG);
     char *err = 0;
     size_t out_size = 0;
     size_t args_size = args.size();
 
-    //get list right
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+
+    //get list left
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
-        //TODO
+        connection->write_error(err);
+        free(err);
+        return;
     }
 
     if(!out) {
-        string key = _encode_list_key(lname, "left");
-        RL_SET(key.data(), key.size(), "0", 1, err);
-        if(err) {
-            //TODO
-        }
-
+        string key = _encode_list_key(lname, LEFT_FLAG);
+        leveldb_writebatch_put(write_batch, key.data(), key.size(), "0", 1);
         flag_index = 0;
     } else {
         char *temp = (char *)malloc(out_size + 1);
@@ -132,11 +133,7 @@ void RLRequest::rl_rpush(){
     for (uint32_t i = 1; i < args_size; i++){
         sprintf(flag_index_s, "%lld", flag_index);
         string key = _encode_list_key(lname, flag_index_s);
-
-        RL_SET(key.data(), key.size(), args[i].data(), args[i].size(), err);
-        if(err) {
-           //TODO:
-        }
+        leveldb_writebatch_put(write_batch, key.data(), key.size(), args[i].data(), args[i].size());
 
         if(i + 1 <  args_size) {
             flag_index++;
@@ -145,34 +142,41 @@ void RLRequest::rl_rpush(){
 
     // update right flag
     sprintf(flag_index_s, "%lld", flag_index);
-    RL_SET(flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s), err);
-    if(err) {
-        //TODO:
+    leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
+    
+    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+    if (err) {
+        connection->write_error(err);
+        free(err);
+    } else {
+        sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
+        connection->write_integer(flag_index_s, strlen(flag_index_s));
     }
-
-    sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
-    connection->write_integer(flag_index_s, strlen(flag_index_s));
 }
 
 void RLRequest::rl_lpop(){
     if(args.size() != 1){
-            connection->write_error("ERR wrong number of arguments for 'lpop' command");
-            return;
+        connection->write_error("ERR wrong number of arguments for 'lpop' command");
+        return;
     }
 
     string &lname = args[0];
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_list_key(lname, "left");
+    string flag_key = _encode_list_key(lname, LEFT_FLAG);
     char *out = 0;
     char *err = 0;
     size_t out_size = 0;
     string key;
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    
     //get list left index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
-        //TODO
+        connection->write_error(err);
+        free(err);
+        return;
     }
 
     if(!out) {
@@ -191,32 +195,38 @@ void RLRequest::rl_lpop(){
     key = _encode_list_key(lname, flag_index_s);
     out = RL_GET(key.data(), key.size(), out_size, err);
     if(err) {
-        //TODO:
         connection->write_error(err);
+        free(err);
         return;
     }
 
     // delete this member and update left index
     if(out) {
-        connection->write_bulk(out, out_size);
-        free(out);
-
-        RL_DEL(key.data(), key.size(), err);
-        if(err) {
-            //TODO:
-        }
+        leveldb_writebatch_delete(write_batch, key.data(), key.size());
 
         sprintf(flag_index_s, "%lld", flag_index + 1);
         key = _encode_list_key(lname, flag_index_s);
-        out = RL_GET(key.data(), key.size(), out_size, err);
-        if (out) {
+        size_t _out_size;
+        char *_out = RL_GET(key.data(), key.size(), _out_size, err);
+        if (_out) {
             RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
-            free(out);
+            leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
+            free(_out);
         } else {
-            RL_DEL(flag_key.data(), flag_key.size(), err);   
-            flag_key = _encode_list_key(lname, "right");
-            RL_DEL(flag_key.data(), flag_key.size(), err);   
+            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
+            flag_key = _encode_list_key(lname, RIGHT_FLAG);
+            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
         }
+        
+        leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+        if (err) {
+            connection->write_error(err);
+            free(err);
+        } else {
+            connection->write_bulk(out, out_size);
+        }
+        free(out);
+
     } else {
         //TODO: exception
     }
@@ -224,23 +234,27 @@ void RLRequest::rl_lpop(){
 
 void RLRequest::rl_rpop(){
     if(args.size() != 1){
-            connection->write_error("ERR wrong number of arguments for 'rpop' command");
-            return;
+        connection->write_error("ERR wrong number of arguments for 'rpop' command");
+        return;
     }
 
     string &lname = args[0];
     int64_t flag_index;
     char flag_index_s[32];
-    string flag_key = _encode_list_key(lname, "right");
+    string flag_key = _encode_list_key(lname, RIGHT_FLAG);
     char *out = 0;
     char *err = 0;
     size_t out_size = 0;
     string key;
 
-    //get list left index
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    
+    //get list right index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
-        //TODO
+        connection->write_error(err);
+        free(err);
+        return;
     }
 
     if(!out) {
@@ -259,41 +273,48 @@ void RLRequest::rl_rpop(){
     key = _encode_list_key(lname, flag_index_s);
     out = RL_GET(key.data(), key.size(), out_size, err);
     if(err) {
-        //TODO:
         connection->write_error(err);
+        free(err);
         return;
     }
 
     // delete this member and update right index
     if(out) {
-        connection->write_bulk(out, out_size);
-        free(out);
-
-        RL_DEL(key.data(), key.size(), err);
-        if(err) {
-            //TODO:
-        }
+        leveldb_writebatch_delete(write_batch, key.data(), key.size());
 
         sprintf(flag_index_s, "%lld", flag_index - 1);
         key = _encode_list_key(lname, flag_index_s);
-        out = RL_GET(key.data(), key.size(), out_size, err);
-        if (out) {
+        size_t _out_size;
+        char *_out = RL_GET(key.data(), key.size(), _out_size, err);
+        if (_out) {
             RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
-            free(out);
+            leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
+            free(_out);
         } else {
-            RL_DEL(flag_key.data(), flag_key.size(), err);   
-            flag_key = _encode_list_key(lname, "left");
-            RL_DEL(flag_key.data(), flag_key.size(), err);   
+            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
+            flag_key = _encode_list_key(lname, LEFT_FLAG);
+            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
         }
+        
+        leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+        if (err) {
+            connection->write_error(err);
+            free(err);
+        } else {
+            connection->write_bulk(out, out_size);
+        }
+        free(out);
+
     } else {
-        //TODO: exception   
+        //TODO: exception
     }
 }
 
+
 void RLRequest::rl_llen(){
     if(args.size() != 1){
-            connection->write_error("ERR wrong number of arguments for 'llen' command");
-            return;
+        connection->write_error("ERR wrong number of arguments for 'llen' command");
+        return;
     }
 
     string &lname = args[0];
@@ -303,11 +324,13 @@ void RLRequest::rl_llen(){
     char *out = 0;
     char *err = 0;
     size_t out_size = 0;
-    string flag_key = _encode_list_key(lname, "right");
+    string flag_key = _encode_list_key(lname, RIGHT_FLAG);
     
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
-        //TODO
+        connection->write_error(err);
+        free(err);
+        return;
     }
 
     if(!out) {
@@ -321,7 +344,7 @@ void RLRequest::rl_llen(){
         free(temp);
         free(out);
         
-        flag_key = _encode_list_key(lname, "left");
+        flag_key = _encode_list_key(lname, LEFT_FLAG);
         out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
         if (!out) {
             //TODO: exception
