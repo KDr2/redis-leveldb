@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -68,7 +69,7 @@ void RLRequest::rl_lpush(){
 
     // push list members
     for (uint32_t i = 1; i < args_size; i++){
-        sprintf(flag_index_s, "%lld", flag_index);
+        sprintf(flag_index_s, "%"PRId64, flag_index);
         string key = _encode_list_key(lname, flag_index_s);
         leveldb_writebatch_put(write_batch, key.data(), key.size(), args[i].data(), args[i].size());
 
@@ -78,7 +79,7 @@ void RLRequest::rl_lpush(){
     }
 
     // update left flag
-    sprintf(flag_index_s, "%lld", flag_index);
+    sprintf(flag_index_s, "%"PRId64, flag_index);
     leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
     
     leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
@@ -131,7 +132,7 @@ void RLRequest::rl_rpush(){
 
     // push list members
     for (uint32_t i = 1; i < args_size; i++){
-        sprintf(flag_index_s, "%lld", flag_index);
+        sprintf(flag_index_s, "%"PRId64, flag_index);
         string key = _encode_list_key(lname, flag_index_s);
         leveldb_writebatch_put(write_batch, key.data(), key.size(), args[i].data(), args[i].size());
 
@@ -141,7 +142,7 @@ void RLRequest::rl_rpush(){
     }
 
     // update right flag
-    sprintf(flag_index_s, "%lld", flag_index);
+    sprintf(flag_index_s, "%"PRId64, flag_index);
     leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
     
     leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
@@ -191,7 +192,7 @@ void RLRequest::rl_lpop(){
         free(out);
     }
 
-    sprintf(flag_index_s, "%lld", flag_index);
+    sprintf(flag_index_s, "%"PRId64, flag_index);
     key = _encode_list_key(lname, flag_index_s);
     out = RL_GET(key.data(), key.size(), out_size, err);
     if(err) {
@@ -204,7 +205,7 @@ void RLRequest::rl_lpop(){
     if(out) {
         leveldb_writebatch_delete(write_batch, key.data(), key.size());
 
-        sprintf(flag_index_s, "%lld", flag_index + 1);
+        sprintf(flag_index_s, "%"PRId64, flag_index + 1);
         key = _encode_list_key(lname, flag_index_s);
         size_t _out_size;
         char *_out = RL_GET(key.data(), key.size(), _out_size, err);
@@ -269,7 +270,7 @@ void RLRequest::rl_rpop(){
         free(out);
     }
 
-    sprintf(flag_index_s, "%lld", flag_index);
+    sprintf(flag_index_s, "%"PRId64, flag_index);
     key = _encode_list_key(lname, flag_index_s);
     out = RL_GET(key.data(), key.size(), out_size, err);
     if(err) {
@@ -282,7 +283,7 @@ void RLRequest::rl_rpop(){
     if(out) {
         leveldb_writebatch_delete(write_batch, key.data(), key.size());
 
-        sprintf(flag_index_s, "%lld", flag_index - 1);
+        sprintf(flag_index_s, "%"PRId64, flag_index - 1);
         key = _encode_list_key(lname, flag_index_s);
         size_t _out_size;
         char *_out = RL_GET(key.data(), key.size(), _out_size, err);
@@ -358,7 +359,7 @@ void RLRequest::rl_llen(){
         }
     }
     
-    sprintf(len, "%lld", right_index - left_index + 1);
+    sprintf(len, "%"PRId64, right_index - left_index + 1);
     connection->write_integer(len, strlen(len));
 }
 
