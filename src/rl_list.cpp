@@ -4,6 +4,7 @@
  *  Created on: 2013-5-19
  *      Author: imessi
  */
+#define __STDC_FORMAT_MACROS
 
 #include <iostream>
 #include <sstream>
