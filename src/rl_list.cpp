@@ -52,6 +52,7 @@ void RLRequest::rl_lpush(){
     if(err) {
         connection->write_error(err);
         free(err);
+        leveldb_writebatch_destroy(write_batch);
         return;
     }
 
@@ -91,6 +92,8 @@ void RLRequest::rl_lpush(){
         sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
         connection->write_integer(flag_index_s, strlen(flag_index_s));
     }
+
+    leveldb_writebatch_destroy(write_batch);
 }
 
 void RLRequest::rl_rpush(){
@@ -115,6 +118,7 @@ void RLRequest::rl_rpush(){
     if(err) {
         connection->write_error(err);
         free(err);
+        leveldb_writebatch_destroy(write_batch);
         return;
     }
 
@@ -154,6 +158,8 @@ void RLRequest::rl_rpush(){
         sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
         connection->write_integer(flag_index_s, strlen(flag_index_s));
     }
+
+    leveldb_writebatch_destroy(write_batch);
 }
 
 void RLRequest::rl_lpop(){
@@ -171,8 +177,6 @@ void RLRequest::rl_lpop(){
     size_t out_size = 0;
     string key;
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
-    
     //get list left index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
@@ -202,6 +206,7 @@ void RLRequest::rl_lpop(){
         return;
     }
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
     // delete this member and update left index
     if(out) {
         leveldb_writebatch_delete(write_batch, key.data(), key.size());
@@ -232,6 +237,8 @@ void RLRequest::rl_lpop(){
     } else {
         //TODO: exception
     }
+
+    leveldb_writebatch_destroy(write_batch);
 }
 
 void RLRequest::rl_rpop(){
@@ -249,8 +256,6 @@ void RLRequest::rl_rpop(){
     size_t out_size = 0;
     string key;
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
-    
     //get list right index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
@@ -280,6 +285,7 @@ void RLRequest::rl_rpop(){
         return;
     }
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
     // delete this member and update right index
     if(out) {
         leveldb_writebatch_delete(write_batch, key.data(), key.size());
@@ -310,6 +316,8 @@ void RLRequest::rl_rpop(){
     } else {
         //TODO: exception
     }
+
+    leveldb_writebatch_destroy(write_batch);
 }
 
 
