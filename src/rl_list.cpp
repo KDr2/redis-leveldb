@@ -4,21 +4,14 @@
  *  Created on: 2013-5-19
  *      Author: imessi
  */
-#define __STDC_FORMAT_MACROS
 
-#include <iostream>
-#include <sstream>
-#include <algorithm>
-#include <functional>
+#define __STDC_FORMAT_MACROS
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-
-#include <unistd.h>
-#include <sys/socket.h>
 
 #include "rl.h"
 #include "rl_util.h"
@@ -82,7 +75,7 @@ void RLRequest::rl_lpush(){
     // update left flag
     sprintf(flag_index_s, "%"PRId64, flag_index);
     leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
-    
+
     leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
     if (err) {
         connection->write_error(err);
@@ -145,7 +138,7 @@ void RLRequest::rl_rpush(){
     // update right flag
     sprintf(flag_index_s, "%"PRId64, flag_index);
     leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
-    
+
     leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
     if (err) {
         connection->write_error(err);
@@ -172,7 +165,7 @@ void RLRequest::rl_lpop(){
     string key;
 
     leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
-    
+
     //get list left index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
@@ -219,7 +212,7 @@ void RLRequest::rl_lpop(){
             flag_key = _encode_list_key(lname, RIGHT_FLAG);
             leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
         }
-        
+
         leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
         if (err) {
             connection->write_error(err);
@@ -250,7 +243,7 @@ void RLRequest::rl_rpop(){
     string key;
 
     leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
-    
+
     //get list right index
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
@@ -297,7 +290,7 @@ void RLRequest::rl_rpop(){
             flag_key = _encode_list_key(lname, LEFT_FLAG);
             leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
         }
-        
+
         leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
         if (err) {
             connection->write_error(err);
@@ -327,7 +320,7 @@ void RLRequest::rl_llen(){
     char *err = 0;
     size_t out_size = 0;
     string flag_key = _encode_list_key(lname, RIGHT_FLAG);
-    
+
     out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
     if(err) {
         connection->write_error(err);
@@ -345,7 +338,7 @@ void RLRequest::rl_llen(){
         right_index = atoll(temp);
         free(temp);
         free(out);
-        
+
         flag_key = _encode_list_key(lname, LEFT_FLAG);
         out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
         if (!out) {
@@ -359,8 +352,7 @@ void RLRequest::rl_llen(){
             free(out);
         }
     }
-    
+
     sprintf(len, "%"PRId64, right_index - left_index + 1);
     connection->write_integer(len, strlen(len));
 }
-
