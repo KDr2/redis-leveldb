@@ -37,13 +37,21 @@ Redis COMMAND Supported
   - hvals
   - hlen
 
+* list commands(New):
+
+  - lpush
+  - lpop
+  - rpush
+  - rpop
+  - llen
+
 * transaction commands:
 
   - multi
   - exec
   - discard
 
-* connection commans:
+* connection commands:
 
   - select: select db (when redis-leveldb run in multi-db mode, with
     argument ``-M <num>``)
