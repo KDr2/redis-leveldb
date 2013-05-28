@@ -97,6 +97,7 @@ Run
 options:
 
 * -d:              run redis-level as a daemon process
+* -r <db-path>:    repair a leveldb database
 * -H <host-ip>:    host addr to listen on(eg: 127.0.0.1)
 * -P <port>:	   port to listen on(default 8323)
 * -D <data-dir>:   leveldb data dir(default "redis.db" under your work
