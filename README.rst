@@ -58,7 +58,8 @@ Redis COMMAND Supported
 
 * server commands:
 
-  - keys
+  - shutdown: shutdown the server
+  - keys: list all keys in current db, do NOT use it in production environment
   - info: Different to redis, this info command accepts a flag
     argument, eg ``info``, ``info k``, ``info t``, ``info kt``
 
