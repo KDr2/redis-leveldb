@@ -33,18 +33,20 @@ int main(int argc, char** argv) {
 
     int port=8323;
     int db_num=0;
-    
+
     RLRequest::init_cmd_map();
-    
+
     char data_dir[128];
     memset(data_dir,0,128);
     strncpy(data_dir,"redis.db",8);
-  
-    while ((ch = getopt(argc, argv, "hdH:P:D:M:")) != -1) {
+
+    while ((ch = getopt(argc, argv, "hdr:H:P:D:M:")) != -1) {
         switch (ch) {
         case 'h':
             printf("Usage:\n\t./redis-leveldb [options]\n");
-            printf("Options:\n\t-d:\t\t daemon\n");
+            printf("Options:\n");
+            printf("\t-d:\t\t run in daemon mode\n");
+            printf("\t-r db-path:\t repair db\n");
             printf("\t-H host-ip:\t listen host\n");
             printf("\t-P port:\t listen port\n");
             printf("\t-D data-dir:\t data dir\n");
@@ -52,6 +54,10 @@ int main(int argc, char** argv) {
             exit(0);
         case 'd':
             daemon_flag = 1;
+            break;
+        case 'r':
+            leveldb_repair(optarg);
+            exit(0);
             break;
         case 'H':
             strcpy(hostaddr,optarg);
@@ -87,18 +93,20 @@ int main(int argc, char** argv) {
             break;
         }
     }
-  
+
     if(daemon_flag){
-        if(daemon_init() == -1) { 
-            printf("can't run as daemon\n"); 
+        if(daemon_init() == -1) {
+            printf("can't run as daemon\n");
             exit(1);
         }
     }
-  
-    signal(SIGTERM, sig_term);
+
     signal(SIGINT,  sig_term);
+    signal(SIGTERM, sig_term);
+    signal(SIGQUIT, sig_term);
     signal(SIGPIPE, SIG_IGN);
-    
+    atexit(&exit_hook);
+
     if(opt_host){
         server = new RLServer(data_dir, hostaddr, port, db_num);
         server->start();
@@ -109,4 +117,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

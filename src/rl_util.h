@@ -12,6 +12,9 @@ void set_nonblock(int fd);
 
 int daemon_init(void);
 
+void leveldb_repair(const char *db_path);
+
+void exit_hook(void);
 void sig_term(int signo);
 
 int stringmatchlen(const char *pattern, int patternLen,

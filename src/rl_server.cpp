@@ -40,9 +40,9 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
 
     read_options = leveldb_readoptions_create();
     write_options = leveldb_writeoptions_create();
-    
+
     char* err = 0;
-    
+
     if(db_num<1){
         db=new leveldb_t*[1];
         db[0] = leveldb_open(options, db_path.c_str(), &err);
@@ -81,20 +81,24 @@ RLServer::~RLServer(){
     delete[] db;
     if(loop) ev_loop_destroy(loop);
     close(fd);
+
+    leveldb_options_destroy(options);
+    leveldb_readoptions_destroy(read_options);
+    leveldb_writeoptions_destroy(write_options);
 }
 
 
 void RLServer::start()
-{    
+{
     struct linger ling = {0, 0};
     struct sockaddr_in addr;
     int flags = 1;
-  
+
     if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket()");
         exit(1);
     }
-  
+
     flags = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
     setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&flags, sizeof(flags));
@@ -104,12 +108,12 @@ void RLServer::start()
      * need to enable the Nagel algorithm dynamically. For now disabling.
      */
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
-  
+
     /* the memset call clears nonstandard fields in some impementations that
      * otherwise mess things up.
      */
     memset(&addr, 0, sizeof(addr));
-  
+
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     if(!hostaddr.empty()){
@@ -121,7 +125,7 @@ void RLServer::start()
     }else{
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
     }
-  
+
     if(bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind()");
         if(fd > 0) close(fd);
@@ -132,14 +136,14 @@ void RLServer::start()
         perror("listen()");
         exit(1);
     }
-  
+
     set_nonblock(fd);
-    
+
     ev_init(&connection_watcher, RLServer::on_connection);
-    
+
     ev_io_set(&connection_watcher, fd, EV_READ);
     ev_io_start(loop, &connection_watcher);
-    
+
     ev_run(loop, 0);
 }
 
@@ -150,9 +154,9 @@ void RLServer::on_connection(struct ev_loop *loop, ev_io *watcher, int revents)
         puts("on_connection() got error event, closing server.");
         return;
     }
-  
+
     struct sockaddr_in addr; // connector's address information
-    socklen_t addr_len = sizeof(addr); 
+    socklen_t addr_len = sizeof(addr);
     int fd = accept(s->fd, (struct sockaddr*)&addr, &addr_len);
 
     if(fd < 0) {
@@ -165,9 +169,7 @@ void RLServer::on_connection(struct ev_loop *loop, ev_io *watcher, int revents)
     if(connection == NULL) {
         close(fd);
         return;
-    } 
+    }
     connection->start();
-    
+
 }
-
-

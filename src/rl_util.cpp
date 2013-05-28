@@ -27,36 +27,68 @@ void set_nonblock (int fd) {
     assert(0 <= r && "Setting socket non-block failed!");
 }
 
-int daemon_init(void) { 
+int daemon_init(void) {
     pid_t pid;
     if((pid = fork()) < 0) {
-        return -1; 
+        return -1;
     } else if(pid != 0) {
         exit(0); //parent exit
     }
 
-    /* child continues */ 
-    setsid(); /* become session leader */ 
-    //chdir("/"); /* change working directory */ 
-    
-    umask(0); /* clear file mode creation mask */ 
-    close(0); /* close stdin */ 
-    close(1); /* close stdout */ 
-    close(2); /* close stderr */ 
-    
+    /* child continues */
+    setsid(); /* become session leader */
+    //chdir("/"); /* change working directory */
+
+    umask(0); /* clear file mode creation mask */
+    close(0); /* close stdin */
+    close(1); /* close stdout */
+    close(2); /* close stderr */
+
     return 0;
 }
 
 extern RLServer *server;
 
+void leveldb_repair(const char *db_path){
+    char *err = 0;
+    struct stat dbstat;
+    leveldb_options_t* options;
+
+    if(stat(db_path, &dbstat)){
+        perror("REPAIR DB ERROR:");
+        exit(-1);
+    }
+    if(!S_ISDIR(dbstat.st_mode)){
+        fprintf(stderr, "REPAIR DB ERROR: %s is not a directory\n", db_path);
+        exit(-1);
+    }
+
+    options = leveldb_options_create();
+    leveldb_options_set_create_if_missing(options, 0);
+    leveldb_repair_db(options, db_path, &err);
+    if(err){
+        fprintf(stderr, "REPAIR DB ERROR: %s\n", err);
+        free(err);
+    }else{
+        fprintf(stderr, "REPAIR DB FINISHED\n");
+    }
+    leveldb_options_destroy(options);
+}
+
+void exit_hook(){
+    printf("exiting...\n");
+    if(server){
+        delete server;
+        server=NULL;
+    }
+}
+
 void sig_term(int signo) {
-    if(signo == SIGTERM || signo==SIGINT) {
-        printf("exiting...\n");
-        if(server){
-            delete server;
-            server=NULL;
-        }
-        exit(0); 
+    if(signo==SIGINT ||
+        signo == SIGTERM ||
+        signo == SIGQUIT) {
+        exit_hook();
+        exit(0);
     }
 }
 
@@ -188,6 +220,3 @@ int stringmatchlen(const char *pattern, int patternLen,
 int stringmatch(const char *pattern, const char *string, int nocase) {
     return stringmatchlen(pattern,strlen(pattern),string,strlen(string),nocase);
 }
-
-
-
