@@ -35,6 +35,7 @@ void RLRequest::init_cmd_map()
     RLRequest::cmd_map["info"]       = &RLRequest::rl_info;
     RLRequest::cmd_map["keys"]       = &RLRequest::rl_keys;
     RLRequest::cmd_map["select"]     = &RLRequest::rl_select;
+    RLRequest::cmd_map["shutdown"]   = &RLRequest::rl_shutdown;
     RLRequest::cmd_map["multi"]      = &RLRequest::rl_multi;
     RLRequest::cmd_map["exec"]       = &RLRequest::rl_exec;
     RLRequest::cmd_map["discard"]    = &RLRequest::rl_discard;
@@ -295,4 +296,13 @@ void RLRequest::rl_info(){
         }
     }
     connection->write_bulk(info.str());
+}
+
+
+void RLRequest::rl_shutdown(){
+    extern RLServer *server;
+    server=NULL;
+    delete connection->server;
+    fprintf(stderr, "SHUTDOWN by client\n");
+    exit(0);
 }

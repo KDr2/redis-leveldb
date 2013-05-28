@@ -41,6 +41,7 @@ public:
     void rl_select();
     void rl_keys();
     void rl_info();
+    void rl_shutdown();
 
     void rl_multi();
     void rl_exec();
