@@ -41,11 +41,11 @@ redis-leveldb: $(OBJS) ../vendor/libleveldb.a
 	$(CXX) $^ $(LIBS) $(LDFLAGS) -o ../$@
 
 clean:
-	-rm ../redis-leveldb
-	-rm *.o
+	-rm -f ../redis-leveldb
+	-rm -f *.o
 
 distclean: clean
-	-rm vendor/*.a
+	-rm -f vendor/*.a
 	cd vendor/leveldb; make clean
 
 ../vendor/libleveldb.a:
