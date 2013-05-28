@@ -45,8 +45,8 @@ clean:
 	-rm -f *.o
 
 distclean: clean
-	-rm -f vendor/*.a
-	cd vendor/leveldb; make clean
+	-rm -f ../vendor/*.a
+	cd ../vendor/leveldb; make clean
 
 ../vendor/libleveldb.a:
 	cd ../vendor/leveldb; make && cp libleveldb.a ..
