@@ -35,33 +35,27 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
     db_num(dbn), db_path(_db_path), hostaddr(_hostaddr), port(_port),
     fd(-1), clients_num(0)
 {
-    options = leveldb_options_create();
-    leveldb_options_set_create_if_missing(options, 1);
+    options.create_if_missing = true;
 
-    read_options = leveldb_readoptions_create();
-    write_options = leveldb_writeoptions_create();
-
-    char* err = 0;
+    leveldb::Status status;
 
     if(db_num<1){
-        db=new leveldb_t*[1];
-        db[0] = leveldb_open(options, db_path.c_str(), &err);
-        if(err) {
-            puts(err);
-            free(err);
+        db=new leveldb::DB*[1];
+        status = leveldb::DB::Open(options, db_path.c_str(), &db[0]);
+        if(!status.ok()) {
+            puts("leveldb open error");
             exit(1);
         }
     }else{
-        db=new leveldb_t*[db_num];
+        db=new leveldb::DB*[db_num];
         char buf[16];
         for(int i=0;i<db_num;i++){
             int count = sprintf(buf, "/db-%03d", i);
             //TODO the db path
-            db[i] = leveldb_open(options, (db_path+std::string(buf,count)).c_str(), &err);
-            if(err) {
+            status = leveldb::DB::Open(options, (db_path+std::string(buf,count)).c_str(), &db[i]);
+            if(!status.ok()) {
+                puts("leveldb open error:");
                 puts(buf);
-                puts(err);
-                free(err);
                 exit(1);
             }
         }
@@ -74,19 +68,15 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
 
 RLServer::~RLServer(){
     if(db_num<1){
-        leveldb_close(db[0]);
+        delete db[0];
     }else{
         for(int i=0;i<db_num;i++){
-            leveldb_close(db[i]);
+            delete db[i];
         }
     }
     delete[] db;
     if(loop) ev_loop_destroy(loop);
     close(fd);
-
-    leveldb_options_destroy(options);
-    leveldb_readoptions_destroy(read_options);
-    leveldb_writeoptions_destroy(write_options);
 }
 
 

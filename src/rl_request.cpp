@@ -20,6 +20,8 @@
 
 #include <gmp.h>
 
+#include <leveldb/iterator.h>
+
 #include "rl.h"
 #include "rl_util.h"
 #include "rl_server.h"
@@ -217,19 +219,18 @@ void RLRequest::rl_keys(){
     size_t arg_len=args[0].size();
     bool allkeys = (arg_len==1 && args[0][0]=='*');
     if(arg_len>0){
-        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
-                                                          connection->server->read_options);
-        const char *key;
-        size_t key_len;
-        leveldb_iter_seek_to_first(kit);
-        while(leveldb_iter_valid(kit)) {
-            key = leveldb_iter_key(kit, &key_len);
-            if(allkeys || stringmatchlen(args[0].c_str(), arg_len, key, key_len, 0)){
-                keys.push_back(std::string(key,key_len));
+        leveldb::Iterator *kit = connection->server->db[connection->db_index]->NewIterator(
+            connection->server->read_options);
+        leveldb::Slice key;
+        kit->SeekToFirst();
+        while(kit->Valid()) {
+            key = kit->key();
+            if(allkeys || stringmatchlen(args[0].c_str(), arg_len, key.data(), key.size(), 0)){
+                keys.push_back(key.ToString());
             }
-            leveldb_iter_next(kit);
+            kit->Next();
         }
-        leveldb_iter_destroy(kit);
+        delete kit;
     }else{
         keys.push_back("");
     }
@@ -250,7 +251,7 @@ void RLRequest::rl_info(){
     }
 
     std::ostringstream info;
-    char *out=NULL;
+    string out;
 
     info << "redis_version: redis-leveldb " VERSION_STR "\r\n";
     info << "mode: ";
@@ -266,33 +267,31 @@ void RLRequest::rl_info(){
     info << "data_path: " << connection->server->db_path << "\r\n";
     info << "clients_num: " << connection->server->clients_num << "\r\n";
 
-    out=leveldb_property_value(connection->server->db[connection->db_index],"leveldb.stats");
-    if(out){
+    bool r = connection->server->db[connection->db_index]->GetProperty("leveldb.stats", &out);
+    if(r){
         info<< "stats: " << out <<"\r\n";
-        free(out);
     }
 
     /* kyes num */
     if(args.size()>0 && args[0].find('k')!=std::string::npos){
         uint64_t key_num=0;
-        leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
-                                                          connection->server->read_options);
+        leveldb::Iterator *kit = connection->server->db[connection->db_index]->NewIterator(
+            connection->server->read_options);
 
-        leveldb_iter_seek_to_first(kit);
-        while(leveldb_iter_valid(kit)){
+        kit->SeekToFirst();
+        while(kit->Valid()){
             key_num++;
-            leveldb_iter_next(kit);
+            kit->Next();
         }
-        leveldb_iter_destroy(kit);
+        delete kit;
         info<< "keys: " << key_num <<"\r\n";
     }
 
     /** sstables info */
     if(args.size()>0 && args[0].find('t')!=std::string::npos){
-        out=leveldb_property_value(connection->server->db[connection->db_index],"leveldb.sstables");
-        if(out){
+        r = connection->server->db[connection->db_index]->GetProperty("leveldb.sstables", &out);
+        if(r){
             info<< "sstables:\r\n" << out <<"\r\n";
-            free(out);
         }
     }
     connection->write_bulk(info.str());

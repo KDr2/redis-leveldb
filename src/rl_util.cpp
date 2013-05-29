@@ -50,9 +50,9 @@ int daemon_init(void) {
 extern RLServer *server;
 
 void leveldb_repair(const char *db_path){
-    char *err = 0;
     struct stat dbstat;
-    leveldb_options_t* options;
+    leveldb::Options options;
+    options.create_if_missing = false;
 
     if(stat(db_path, &dbstat)){
         perror("REPAIR DB ERROR:");
@@ -63,16 +63,12 @@ void leveldb_repair(const char *db_path){
         exit(-1);
     }
 
-    options = leveldb_options_create();
-    leveldb_options_set_create_if_missing(options, 0);
-    leveldb_repair_db(options, db_path, &err);
-    if(err){
-        fprintf(stderr, "REPAIR DB ERROR: %s\n", err);
-        free(err);
+    leveldb::Status st = leveldb::RepairDB(db_path, options);
+    if(!st.ok()){
+        fprintf(stderr, "REPAIR DB ERROR :(\n");
     }else{
         fprintf(stderr, "REPAIR DB FINISHED\n");
     }
-    leveldb_options_destroy(options);
 }
 
 void exit_hook(){
