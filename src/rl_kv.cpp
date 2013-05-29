@@ -36,6 +36,7 @@ void RLRequest::rl_incr(){
 
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
@@ -64,6 +65,7 @@ void RLRequest::rl_incr(){
     if(err) {
         connection->write_error(err);
         free(str_newv);
+        free(err);
         return;
     }
 
@@ -82,6 +84,7 @@ void RLRequest::rl_incrby(){
 
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
@@ -115,6 +118,7 @@ void RLRequest::rl_incrby(){
     if(err) {
         connection->write_error(err);
         free(str_newv);
+        free(err);
         return;
     }
 
@@ -138,6 +142,7 @@ void RLRequest::rl_get(){
 
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
@@ -164,7 +169,12 @@ void RLRequest::rl_set(){
                 args[0].data(), args[0].size(),
                 args[1].data(), args[1].size(), &err);
 
-    if(err) puts(err);
+    if(err) {
+        puts(err);
+        connection->write_error(err);
+        free(err);
+        return;
+    }
 
     connection->write_status("OK");
 }
@@ -182,6 +192,7 @@ void RLRequest::rl_del(){
                 args[0].data(), args[0].size(), &out_size, &err);
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
@@ -190,7 +201,12 @@ void RLRequest::rl_del(){
     } else {
         leveldb_delete(connection->server->db[connection->db_index], connection->server->write_options,
             args[0].data(), args[0].size(), &err);
-        connection->write_integer("1", 1);
+        if(err){
+            connection->write_error(err);
+            free(err);
+        }else{
+            connection->write_integer("1", 1);
+        }
         free(out);
     }
 }
@@ -215,6 +231,7 @@ void RLRequest::rl_mget(){
 
         if(err) {
             puts(err);
+            free(err);
             out = 0;
         }
 
@@ -236,12 +253,20 @@ void RLRequest::rl_mset(){
     }
 
     char* err = 0;
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
 
     for(uint32_t i=0;i<args.size();i+=2){
-        leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-                    args[i].data(), args[i].size(),
-                    args[i+1].data(), args[i+1].size(), &err);
-        if(err) puts(err);
+        leveldb_writebatch_put(write_batch,
+            args[i].data(), args[i].size(),
+            args[i+1].data(), args[i+1].size());
     }
-    connection->write_status("OK");
+    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+    leveldb_writebatch_destroy(write_batch);
+    if(err) {
+        puts(err);
+        connection->write_error(err);
+        free(err);
+    } else {
+        connection->write_status("OK");
+    }
 }

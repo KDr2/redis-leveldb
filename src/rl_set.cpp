@@ -40,12 +40,15 @@ void RLRequest::rl_sadd(){
     char *err = 0;
     size_t out_size = 0;
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+
     for(uint32_t i=1; i<args.size(); i++){
         string key = _encode_set_key(sname, args[i]);
 
         out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
                     key.data(), key.size(), &out_size, &err);
         if(err) {
+            free(err);
             puts(err);
             err = 0;
             out = 0;
@@ -54,14 +57,8 @@ void RLRequest::rl_sadd(){
 
         if(!out) {
             // set value
-            leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-                key.data(), key.size(), "\1", 1, &err);
-            if(err){
-                puts(err);
-                err = 0;
-            }else{
-                ++new_mem;
-            }
+            leveldb_writebatch_put(write_batch, key.data(), key.size(), "\1", 1);
+            ++new_mem;
         } else {
             free(out);
             out = 0;
@@ -69,6 +66,7 @@ void RLRequest::rl_sadd(){
     }
     if(new_mem == 0){
         connection->write_integer("0", 1);
+        leveldb_writebatch_destroy(write_batch);
         return;
     }
     // update size!
@@ -77,6 +75,7 @@ void RLRequest::rl_sadd(){
 
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
     }
@@ -105,12 +104,14 @@ void RLRequest::rl_sadd(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-        sizekey.data(), sizekey.size(), str_newv, strlen(str_newv), &err);
+    leveldb_writebatch_put(write_batch, sizekey.data(), sizekey.size(), str_newv, strlen(str_newv));
 
+    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+    leveldb_writebatch_destroy(write_batch);
     free(str_newv);
     if(err) {
         connection->write_error(err);
+        free(err);
         return;
     }
 
@@ -139,6 +140,7 @@ void RLRequest::rl_srem(){
               key.data(), key.size(), &out_size, &err);
         if(err) {
             puts(err);
+            free(err);
             err = 0;
             out = 0;
             continue;
@@ -154,6 +156,7 @@ void RLRequest::rl_srem(){
                 key.data(), key.size(), &err);
             if(err){
                 puts(err);
+                free(err);
                 err = 0;
             }else{
                 ++del_mem;
@@ -170,6 +173,7 @@ void RLRequest::rl_srem(){
 
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
     }
@@ -204,6 +208,7 @@ void RLRequest::rl_srem(){
     free(str_newv);
     if(err) {
         connection->write_error(err);
+        free(err);
         return;
     }
 
@@ -225,6 +230,7 @@ void RLRequest::rl_scard(){
 
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
@@ -286,7 +292,9 @@ void RLRequest::rl_sismember(){
           key.data(), key.size(), &out_size, &err);
     if(err) {
         puts(err);
-        out = 0;
+        free(err);
+        connection->write_error(err);
+        return;
     }
 
     if(!out) {

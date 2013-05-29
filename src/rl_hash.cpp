@@ -44,9 +44,9 @@ void RLRequest::rl_hget(){
           key.data(), key.size(), &out_size, &err);
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
-        //TODO
     }
 
     if(!out) {
@@ -74,20 +74,24 @@ void RLRequest::rl_hset(){
     string sizekey = _encode_compdata_size_key(hname, CompDataType::HASH);
     string key = _encode_hash_key(hname, args[1]);
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+
     out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
           key.data(), key.size(), &out_size, &err);
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
         //TODO
     }
 
     // set even exists
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-        key.data(), key.size(), args[2].data(), args[2].size(), &err);
+    leveldb_writebatch_put(write_batch, key.data(), key.size(), args[2].data(), args[2].size());
+
     if(err){
         puts(err);
+        free(err);
         err = 0;
     }else{
         if(!out) ++new_mem;
@@ -98,7 +102,14 @@ void RLRequest::rl_hset(){
     }
 
     if(new_mem == 0){
-        connection->write_integer("0", 1);
+        leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+        leveldb_writebatch_destroy(write_batch);
+        if(err){
+            connection->write_error(err);
+            free(err);
+        }else{
+            connection->write_integer("0", 1);
+        }
         return;
     }
     // update size!
@@ -107,6 +118,7 @@ void RLRequest::rl_hset(){
 
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
     }
@@ -135,12 +147,13 @@ void RLRequest::rl_hset(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-        sizekey.data(), sizekey.size(), str_newv, strlen(str_newv), &err);
-
+    leveldb_writebatch_put(write_batch, sizekey.data(), sizekey.size(), str_newv, strlen(str_newv));
+    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+    leveldb_writebatch_destroy(write_batch);
     free(str_newv);
     if(err) {
         connection->write_error(err);
+        free(err);
         return;
     }
 
@@ -161,6 +174,8 @@ void RLRequest::rl_hsetnx(){
     char *err = 0;
     size_t out_size = 0;
 
+    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+
     string sizekey = _encode_compdata_size_key(hname, CompDataType::HASH);
     string key = _encode_hash_key(hname, args[1]);
 
@@ -168,21 +183,15 @@ void RLRequest::rl_hsetnx(){
           key.data(), key.size(), &out_size, &err);
     if(err) {
         puts(err);
-        err = 0;
-        out = 0;
-        //TODO
+        connection->write_error(err);
+        free(err);
+        return;
     }
 
     if(!out) {
         // set value
-        leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-            key.data(), key.size(), args[2].data(), args[2].size(), &err);
-        if(err){
-            puts(err);
-            err = 0;
-        }else{
-            ++new_mem;
-        }
+        leveldb_writebatch_put(write_batch,key.data(), key.size(), args[2].data(), args[2].size());
+        ++new_mem;
     } else {
         free(out);
         out = 0;
@@ -190,6 +199,7 @@ void RLRequest::rl_hsetnx(){
 
     if(new_mem == 0){
         connection->write_integer("0", 1);
+        leveldb_writebatch_destroy(write_batch);
         return;
     }
     // update size!
@@ -198,6 +208,7 @@ void RLRequest::rl_hsetnx(){
 
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
     }
@@ -226,12 +237,13 @@ void RLRequest::rl_hsetnx(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-        sizekey.data(), sizekey.size(), str_newv, strlen(str_newv), &err);
-
+    leveldb_writebatch_put(write_batch, sizekey.data(), sizekey.size(), str_newv, strlen(str_newv));
+    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
+    leveldb_writebatch_destroy(write_batch);
     free(str_newv);
     if(err) {
         connection->write_error(err);
+        free(err);
         return;
     }
 
@@ -260,6 +272,7 @@ void RLRequest::rl_hdel(){
               key.data(), key.size(), &out_size, &err);
         if(err) {
             puts(err);
+            free(err);
             err = 0;
             out = 0;
             continue;
@@ -275,6 +288,7 @@ void RLRequest::rl_hdel(){
                 key.data(), key.size(), &err);
             if(err){
                 puts(err);
+                free(err);
                 err = 0;
             }else{
                 ++del_mem;
@@ -291,6 +305,7 @@ void RLRequest::rl_hdel(){
 
     if(err) {
         puts(err);
+        free(err);
         err = 0;
         out = 0;
     }
@@ -325,6 +340,7 @@ void RLRequest::rl_hdel(){
     free(str_newv);
     if(err) {
         connection->write_error(err);
+        free(err);
         return;
     }
 
@@ -349,6 +365,7 @@ void RLRequest::rl_hexists(){
           key.data(), key.size(), &out_size, &err);
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
@@ -482,6 +499,7 @@ void RLRequest::rl_hlen(){
 
     if(err) {
         puts(err);
+        free(err);
         out = 0;
     }
 
