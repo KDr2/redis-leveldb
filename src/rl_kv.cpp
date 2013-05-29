@@ -20,6 +20,8 @@
 
 #include <gmp.h>
 
+#include <leveldb/write_batch.h>
+
 #include "rl.h"
 #include "rl_util.h"
 #include "rl_server.h"
@@ -29,25 +31,20 @@
 
 void RLRequest::rl_incr(){
 
-    size_t out_size = 0;
-    char* err = 0;
-    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                            args[0].data(), args[0].size(), &out_size, &err);
+    std::string out;
+    leveldb::Status status;
 
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
+    status = connection->server->db[connection->db_index]->Get(connection->server->read_options,
+             args[0], &out);
+
 
     char *str_oldv=NULL;
-    if(!out){
+    if(!status.ok()){
         str_oldv = strdup("0");
     }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
+        str_oldv=(char*)malloc(out.size()+1);
+        memcpy(str_oldv,out.data(),out.size());
+        str_oldv[out.size()]=0;
     }
 
     mpz_t old_v;
@@ -58,14 +55,12 @@ void RLRequest::rl_incr(){
     char *str_newv=mpz_get_str(NULL,10,old_v);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-                args[0].data(), args[0].size(),
-                str_newv, strlen(str_newv), &err);
+    status = connection->server->db[connection->db_index]->Put(connection->server->write_options,
+             args[0], leveldb::Slice(str_newv, strlen(str_newv)));
 
-    if(err) {
-        connection->write_error(err);
+    if(!status.ok()) {
+        connection->write_error("INCR ERROR");
         free(str_newv);
-        free(err);
         return;
     }
 
@@ -76,30 +71,22 @@ void RLRequest::rl_incr(){
 
 void RLRequest::rl_incrby(){
 
-    size_t out_size = 0;
-    char* err = 0;
-
-    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                            args[0].data(), args[0].size(), &out_size, &err);
-
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
+    std::string out;
+    leveldb::Status status;
+    status = connection->server->db[connection->db_index]->Get(connection->server->read_options,
+             args[0], &out);
 
     mpz_t delta;
     mpz_init(delta);
     mpz_set_str(delta,args[1].c_str(),10);
 
     char *str_oldv=NULL;
-    if(!out){
+    if(!status.ok()){
         str_oldv = strdup("0");
     }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
+        str_oldv=(char*)malloc(out.size()+1);
+        memcpy(str_oldv,out.data(),out.size());
+        str_oldv[out.size()]=0;
     }
 
     mpz_t old_v;
@@ -111,14 +98,12 @@ void RLRequest::rl_incrby(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-                args[0].data(), args[0].size(),
-                str_newv, strlen(str_newv), &err);
+    status = connection->server->db[connection->db_index]->Put(connection->server->write_options,
+             args[0], leveldb::Slice(str_newv, strlen(str_newv)));
 
-    if(err) {
-        connection->write_error(err);
+    if(!status.ok()) {
+        connection->write_error("INCRBY ERROR");
         free(str_newv);
-        free(err);
         return;
     }
 
@@ -134,25 +119,18 @@ void RLRequest::rl_get(){
         return;
     }
 
-    size_t out_size = 0;
-    char* err = 0;
+    std::string out;
+    leveldb::Status status;
+    status = connection->server->db[connection->db_index]->Get(connection->server->read_options,
+             args[0], &out);
 
-    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                            args[0].data(), args[0].size(), &out_size, &err);
-
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
-
-    if(!out) {
+    if(!status.ok()) {
+        connection->write_error("GET ERROR");
+    }else if(out.size() == 0) {
         connection->write_nil();
     } else {
-        connection->write_bulk(out, out_size);
-        free(out);
+        connection->write_bulk(out);
     }
-
 }
 
 
@@ -163,16 +141,12 @@ void RLRequest::rl_set(){
         return;
     }
 
-    char* err = 0;
+    leveldb::Status status;
+    status = connection->server->db[connection->db_index]->Put(connection->server->write_options,
+             args[0], args[1]);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-                args[0].data(), args[0].size(),
-                args[1].data(), args[1].size(), &err);
-
-    if(err) {
-        puts(err);
-        connection->write_error(err);
-        free(err);
+    if(!status.ok()) {
+        connection->write_error("SET ERROR");
         return;
     }
 
@@ -186,28 +160,21 @@ void RLRequest::rl_del(){
         return;
     }
 
-    size_t out_size = 0;
-    char* err = 0;
-    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                args[0].data(), args[0].size(), &out_size, &err);
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
+    std::string out;
+    leveldb::Status status;
 
-    if(!out) {
+    status = connection->server->db[connection->db_index]->Get(connection->server->read_options,
+             args[0], &out);
+
+    if(status.IsNotFound()) {
         connection->write_integer("0", 1);
-    } else {
-        leveldb_delete(connection->server->db[connection->db_index], connection->server->write_options,
-            args[0].data(), args[0].size(), &err);
-        if(err){
-            connection->write_error(err);
-            free(err);
+    } else if(status.ok()) {
+        status = connection->server->db[connection->db_index]->Delete(connection->server->write_options, args[0]);
+        if(!status.ok()){
+            connection->write_error("DELETE ERROR");
         }else{
             connection->write_integer("1", 1);
         }
-        free(out);
     }
 }
 
@@ -219,27 +186,21 @@ void RLRequest::rl_mget(){
         return;
     }
 
+    std::string out;
+    leveldb::Status status;
+
     connection->write_mbulk_header(args.size());
 
     std::vector<std::string>::iterator it=args.begin();
+
     for(;it!=args.end();it++){
-        size_t out_size = 0;
-        char* err = 0;
+        status = connection->server->db[connection->db_index]->Get(connection->server->read_options,
+                 *it, &out);
 
-        char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                                it->data(), it->size(), &out_size, &err);
-
-        if(err) {
-            puts(err);
-            free(err);
-            out = 0;
-        }
-
-        if(!out) {
+        if(!status.ok()) {
             connection->write_nil();
         } else {
-            connection->write_bulk(out, out_size);
-            free(out);
+            connection->write_bulk(out);
         }
     }
 }
@@ -252,20 +213,16 @@ void RLRequest::rl_mset(){
         return;
     }
 
-    char* err = 0;
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    leveldb::WriteBatch write_batch;
 
     for(uint32_t i=0;i<args.size();i+=2){
-        leveldb_writebatch_put(write_batch,
-            args[i].data(), args[i].size(),
-            args[i+1].data(), args[i+1].size());
+        write_batch.Put(args[i], args[i+1]);
     }
-    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-    leveldb_writebatch_destroy(write_batch);
-    if(err) {
-        puts(err);
-        connection->write_error(err);
-        free(err);
+
+    leveldb::Status status = connection->server->db[connection->db_index]->Write(
+        connection->server->write_options, &write_batch);
+    if(!status.ok()) {
+        connection->write_error("MSET ERROR");
     } else {
         connection->write_status("OK");
     }
