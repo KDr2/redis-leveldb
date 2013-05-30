@@ -248,9 +248,7 @@ void RLRequest::rl_hdel(){
         connection->server->read_options, sizekey, &out);
 
     char *str_oldv=NULL;
-    if(status.IsNotFound()){
-        str_oldv = strdup("0");
-    }else if(status.ok()){
+    if(status.ok()){
         str_oldv=(char*)malloc(out.size()+1);
         memcpy(str_oldv, out.data(), out.size());
         str_oldv[out.size()]=0;
