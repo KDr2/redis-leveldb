@@ -48,6 +48,7 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
         db[0] = leveldb_open(options, db_path.c_str(), &err);
         if(err) {
             puts(err);
+            free(err);
             exit(1);
         }
     }else{
@@ -60,6 +61,7 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
             if(err) {
                 puts(buf);
                 puts(err);
+                free(err);
                 exit(1);
             }
         }

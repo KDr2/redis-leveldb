@@ -209,7 +209,6 @@ void RLRequest::rl_lpop(){
         size_t _out_size;
         char *_out = RL_GET(key.data(), key.size(), _out_size, err);
         if (_out) {
-            RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
             leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
             free(_out);
         } else {
@@ -288,7 +287,6 @@ void RLRequest::rl_rpop(){
         size_t _out_size;
         char *_out = RL_GET(key.data(), key.size(), _out_size, err);
         if (_out) {
-            RL_SET(flag_key.data(), flag_key.size(),  flag_index_s, strlen(flag_index_s), err);
             leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
             free(_out);
         } else {
