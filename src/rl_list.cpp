@@ -3,6 +3,7 @@
  *
  *  Created on: 2013-5-19
  *      Author: imessi
+ *      Author: KDr2
  */
 
 #define __STDC_FORMAT_MACROS
@@ -12,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+
+#include <leveldb/write_batch.h>
 
 #include "rl.h"
 #include "rl_util.h"
@@ -30,43 +33,39 @@ void RLRequest::rl_lpush(){
     }
 
     string &lname = args[0];
-    char *out = 0;
     int64_t flag_index;
     char flag_index_s[32];
     string flag_key = _encode_list_key(lname, LEFT_FLAG);
-    char *err = 0;
-    size_t out_size = 0;
     size_t args_size = args.size();
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    string out;
+    leveldb::Status status;
+    leveldb::WriteBatch write_batch;
 
     //get list left
-    out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        leveldb_writebatch_destroy(write_batch);
-        return;
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, flag_key, &out);
 
-    if(!out) {
+    if(status.IsNotFound()) {
         string key = _encode_list_key(lname, RIGHT_FLAG);
-        leveldb_writebatch_put(write_batch, key.data(), key.size(), "0", 1);
+        write_batch.Put(key, "0");
         flag_index = 0;
-    } else {
-        char *temp = (char *)malloc(out_size + 1);
-        memcpy(temp, out, out_size);
-        temp[out_size] = 0;
+    } else if(status.ok()){
+        char *temp = (char *)malloc(out.size() + 1);
+        memcpy(temp, out.data(), out.size());
+        temp[out.size()] = 0;
         flag_index = atoll(temp) - 1;
         free(temp);
-        free(out);
+    } else {
+        connection->write_error("LPUSH ERROR 1");
+        return;
     }
 
     // push list members
     for (uint32_t i = 1; i < args_size; i++){
         sprintf(flag_index_s, "%"PRId64, flag_index);
         string key = _encode_list_key(lname, flag_index_s);
-        leveldb_writebatch_put(write_batch, key.data(), key.size(), args[i].data(), args[i].size());
+        write_batch.Put(key, args[i]);
 
         if(i + 1 <  args_size) {
             flag_index--;
@@ -75,18 +74,17 @@ void RLRequest::rl_lpush(){
 
     // update left flag
     sprintf(flag_index_s, "%"PRId64, flag_index);
-    leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
+    write_batch.Put(flag_key, flag_index_s);
 
-    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-    if (err) {
-        connection->write_error(err);
-        free(err);
+    status = connection->server->db[connection->db_index]->Write(
+        connection->server->write_options, &write_batch);
+
+    if (!status.ok()) {
+        connection->write_error("LPUSH ERROR 2");
     } else {
-        sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
+        sprintf(flag_index_s, "%"PRId64, (args_size - 1));
         connection->write_integer(flag_index_s, strlen(flag_index_s));
     }
-
-    leveldb_writebatch_destroy(write_batch);
 }
 
 void RLRequest::rl_rpush(){
@@ -96,44 +94,39 @@ void RLRequest::rl_rpush(){
     }
 
     string &lname = args[0];
-    char *out = 0;
     int64_t flag_index;
     char flag_index_s[32];
     string flag_key = _encode_list_key(lname, RIGHT_FLAG);
-    char *err = 0;
-    size_t out_size = 0;
     size_t args_size = args.size();
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    string out;
+    leveldb::Status status;
+    leveldb::WriteBatch write_batch;
 
     //get list left
-    out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        leveldb_writebatch_destroy(write_batch);
-        return;
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, flag_key, &out);
 
-    if(!out) {
+    if(status.IsNotFound()) {
         string key = _encode_list_key(lname, LEFT_FLAG);
-        leveldb_writebatch_put(write_batch, key.data(), key.size(), "0", 1);
+        write_batch.Put(key, "0");
         flag_index = 0;
-    } else {
-        char *temp = (char *)malloc(out_size + 1);
-        memcpy(temp, out, out_size);
-        temp[out_size] = 0;
+    } else if(status.ok()) {
+        char *temp = (char *)malloc(out.size() + 1);
+        memcpy(temp, out.data(), out.size());
+        temp[out.size()] = 0;
         flag_index = atoll(temp) + 1;
         free(temp);
-        free(out);
+    } else {
+        connection->write_error("RPUSH ERROR 1");
+        return;
     }
 
     // push list members
     for (uint32_t i = 1; i < args_size; i++){
         sprintf(flag_index_s, "%"PRId64, flag_index);
         string key = _encode_list_key(lname, flag_index_s);
-        leveldb_writebatch_put(write_batch, key.data(), key.size(), args[i].data(), args[i].size());
-
+        write_batch.Put(key, args[i]);
         if(i + 1 <  args_size) {
             flag_index++;
         }
@@ -141,18 +134,17 @@ void RLRequest::rl_rpush(){
 
     // update right flag
     sprintf(flag_index_s, "%"PRId64, flag_index);
-    leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
+    write_batch.Put(flag_key, flag_index_s);
 
-    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-    if (err) {
-        connection->write_error(err);
-        free(err);
+    status = connection->server->db[connection->db_index]->Write(
+        connection->server->write_options, &write_batch);
+
+    if (!status.ok()) {
+        connection->write_error("RPUSH ERROR 2");
     } else {
         sprintf(flag_index_s, "%lu", (unsigned long)(args_size - 1));
         connection->write_integer(flag_index_s, strlen(flag_index_s));
     }
-
-    leveldb_writebatch_destroy(write_batch);
 }
 
 void RLRequest::rl_lpop(){
@@ -165,72 +157,72 @@ void RLRequest::rl_lpop(){
     int64_t flag_index;
     char flag_index_s[32];
     string flag_key = _encode_list_key(lname, LEFT_FLAG);
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
+
     string key;
+    string out;
+    leveldb::Status status;
 
     //get list left index
-    out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, flag_key, &out);
 
-    if(!out) {
+    if(status.IsNotFound()) {
         connection->write_nil();
         return;
-    } else {
-        char *temp = (char*)malloc(out_size + 1);
-        memcpy(temp, out, out_size);
-        temp[out_size] = 0;
+    } else if(status.ok()) {
+        char *temp = (char*)malloc(out.size() + 1);
+        memcpy(temp, out.data(), out.size());
+        temp[out.size()] = 0;
         flag_index = atoll(temp);
         free(temp);
-        free(out);
+    } else {
+        connection->write_error("LPOP ERROR 1");
+        return;
     }
 
     sprintf(flag_index_s, "%"PRId64, flag_index);
     key = _encode_list_key(lname, flag_index_s);
-    out = RL_GET(key.data(), key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
+
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
+
+    if(!status.ok()) {
+        connection->write_error("LPOP ERROR 2");
         return;
     }
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    leveldb::WriteBatch write_batch;
     // delete this member and update left index
-    if(out) {
-        leveldb_writebatch_delete(write_batch, key.data(), key.size());
+    if(status.ok()) {
+        string _out;
+        write_batch.Delete(key);
 
         sprintf(flag_index_s, "%"PRId64, flag_index + 1);
         key = _encode_list_key(lname, flag_index_s);
-        size_t _out_size;
-        char *_out = RL_GET(key.data(), key.size(), _out_size, err);
-        if (_out) {
-            leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
-            free(_out);
+
+        status = connection->server->db[connection->db_index]->Get(
+            connection->server->read_options, key, &_out);
+
+        if (status.ok()) {
+            write_batch.Put(flag_key, flag_index_s);
         } else {
-            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
+            // clear the list
+            write_batch.Delete(flag_key);
             flag_key = _encode_list_key(lname, RIGHT_FLAG);
-            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
+            write_batch.Delete(flag_key);
         }
 
-        leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-        if (err) {
-            connection->write_error(err);
-            free(err);
+        status = connection->server->db[connection->db_index]->Write(
+            connection->server->write_options, &write_batch);
+        if (!status.ok()) {
+            connection->write_error("LPOP ERROR 3");
         } else {
-            connection->write_bulk(out, out_size);
+            connection->write_bulk(out.data(), out.size());
         }
-        free(out);
 
     } else {
-        //TODO: exception
+        connection->write_error("LPOP ERROR 4");
     }
-
-    leveldb_writebatch_destroy(write_batch);
 }
 
 void RLRequest::rl_rpop(){
@@ -243,72 +235,69 @@ void RLRequest::rl_rpop(){
     int64_t flag_index;
     char flag_index_s[32];
     string flag_key = _encode_list_key(lname, RIGHT_FLAG);
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
     string key;
 
-    //get list right index
-    out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
-    }
+    string out;
+    leveldb::Status status;
 
-    if(!out) {
+    //get list right index
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, flag_key, &out);
+
+    if(status.IsNotFound()) {
         connection->write_nil();
         return;
-    } else {
-        char *temp = (char*)malloc(out_size + 1);
-        memcpy(temp, out, out_size);
-        temp[out_size] = 0;
+    } else if(status.ok()) {
+        char *temp = (char*)malloc(out.size() + 1);
+        memcpy(temp, out.data(), out.size());
+        temp[out.size()] = 0;
         flag_index = atoll(temp);
         free(temp);
-        free(out);
+    } else {
+        connection->write_error("RPOP ERROR 1");
     }
 
     sprintf(flag_index_s, "%"PRId64, flag_index);
     key = _encode_list_key(lname, flag_index_s);
-    out = RL_GET(key.data(), key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
+
+    if(!status.ok()) {
+        connection->write_error("RPOP ERROR 2");
         return;
     }
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    leveldb::WriteBatch write_batch;
+
     // delete this member and update right index
-    if(out) {
-        leveldb_writebatch_delete(write_batch, key.data(), key.size());
+    if(status.ok()) {
+        string _out;
+        write_batch.Delete(key);
 
         sprintf(flag_index_s, "%"PRId64, flag_index - 1);
         key = _encode_list_key(lname, flag_index_s);
-        size_t _out_size;
-        char *_out = RL_GET(key.data(), key.size(), _out_size, err);
-        if (_out) {
-            leveldb_writebatch_put(write_batch, flag_key.data(), flag_key.size(), flag_index_s, strlen(flag_index_s));
-            free(_out);
+        status = connection->server->db[connection->db_index]->Get(
+            connection->server->read_options, key, &_out);
+
+        if (status.ok()) {
+            write_batch.Put(flag_key, flag_index_s);
         } else {
-            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
+            write_batch.Delete(flag_key);
             flag_key = _encode_list_key(lname, LEFT_FLAG);
-            leveldb_writebatch_delete(write_batch, flag_key.data(), flag_key.size());
+            write_batch.Delete(flag_key);
         }
 
-        leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-        if (err) {
-            connection->write_error(err);
-            free(err);
+        status = connection->server->db[connection->db_index]->Write(
+            connection->server->write_options, &write_batch);
+        if (!status.ok()) {
+            connection->write_error("RPOP ERROR 3");
         } else {
-            connection->write_bulk(out, out_size);
+            connection->write_bulk(out.data(), out.size());
         }
-        free(out);
 
     } else {
-        //TODO: exception
+        connection->write_error("RPOP ERROR 4");
     }
-
-    leveldb_writebatch_destroy(write_batch);
 }
 
 
@@ -322,41 +311,42 @@ void RLRequest::rl_llen(){
     int64_t right_index = 0;
     int64_t left_index = 0;
     char len[32];
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
+
+    string out;
+    leveldb::Status status;
+
     string flag_key = _encode_list_key(lname, RIGHT_FLAG);
 
-    out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, flag_key, &out);
 
-    if(!out) {
+    if(status.IsNotFound()) {
         connection->write_integer("0", 1);
         return;
-    } else {
-        char *temp = (char*)malloc(out_size + 1);
-        memcpy(temp, out, out_size);
-        temp[out_size] = 0;
+    } else if(status.ok()) {
+        char *temp = (char*)malloc(out.size() + 1);
+        memcpy(temp, out.data(), out.size());
+        temp[out.size()] = 0;
         right_index = atoll(temp);
         free(temp);
-        free(out);
 
         flag_key = _encode_list_key(lname, LEFT_FLAG);
-        out = RL_GET(flag_key.data(), flag_key.size(), out_size, err);
-        if (!out) {
-            //TODO: exception
+        status = connection->server->db[connection->db_index]->Get(
+            connection->server->read_options, flag_key, &out);
+
+        if (!status.ok()) {
+            connection->write_error("LLEN ERROR 2");
+            return;
         } else {
-            char *temp = (char*)malloc(out_size + 1);
-            memcpy(temp, out, out_size);
-            temp[out_size] = 0;
+            char *temp = (char*)malloc(out.size() + 1);
+            memcpy(temp, out.data(), out.size());
+            temp[out.size()] = 0;
             left_index = atoll(temp);
             free(temp);
-            free(out);
         }
+    } else {
+        connection->write_error("LLEN ERROR 1");
+        return;
     }
 
     sprintf(len, "%"PRId64, right_index - left_index + 1);

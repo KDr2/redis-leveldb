@@ -20,6 +20,8 @@
 
 #include <gmp.h>
 
+#include <leveldb/write_batch.h>
+
 #include "rl.h"
 #include "rl_util.h"
 #include "rl_server.h"
@@ -34,26 +36,20 @@ void RLRequest::rl_hget(){
     }
     string &hname = args[0];
 
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
+    string out;
+    leveldb::Status status;
 
     string key = _encode_hash_key(hname, args[1]);
 
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          key.data(), key.size(), &out_size, &err);
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
 
-    if(!out) {
+    if(status.IsNotFound()) {
         connection->write_nil();
+    } else if(status.ok()){
+        connection->write_bulk(out.data(), out.size());
     } else {
-        connection->write_bulk(out, out_size);
-        free(out);
+        connection->write_error("HGET ERROR");
     }
 }
 
@@ -67,75 +63,52 @@ void RLRequest::rl_hset(){
     string &hname = args[0];
     uint32_t new_mem = 0;
 
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
-
     string sizekey = _encode_compdata_size_key(hname, CompDataType::HASH);
     string key = _encode_hash_key(hname, args[1]);
 
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    string out;
+    leveldb::Status status;
+    leveldb::WriteBatch write_batch;
 
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          key.data(), key.size(), &out_size, &err);
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
-        //TODO
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
 
     // set even exists
-    leveldb_writebatch_put(write_batch, key.data(), key.size(), args[2].data(), args[2].size());
+    write_batch.Put(key, args[2]);
 
-    if(err){
-        puts(err);
-        free(err);
-        err = 0;
-    }else{
-        if(!out) ++new_mem;
-    }
-    if(out){
-        free(out);
-        out = 0;
+    if(status.ok()){
+        ++new_mem;
     }
 
     if(new_mem == 0){
-        leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-        leveldb_writebatch_destroy(write_batch);
-        if(err){
-            connection->write_error(err);
-            free(err);
+        status = connection->server->db[connection->db_index]->Write(
+            connection->server->write_options, &write_batch);
+        if(!status.ok()){
+            connection->write_error("HSET ERROR");
         }else{
             connection->write_integer("0", 1);
         }
         return;
     }
     // update size!
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          sizekey.data(), sizekey.size(), &out_size, &err);
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, sizekey, &out);
 
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
+    char *str_oldv=NULL;
+    if(status.IsNotFound()){
+        str_oldv = strdup("0");
+    }else if(status.ok()){
+        str_oldv=(char*)malloc(out.size()+1);
+        memcpy(str_oldv, out.data(), out.size());
+        str_oldv[out.size()]=0;
+    }else{
+        connection->write_error("HSET ERROR");
+        return;
     }
 
     mpz_t delta;
     mpz_init(delta);
     mpz_set_ui(delta, new_mem);
-
-    char *str_oldv=NULL;
-    if(!out){
-        str_oldv = strdup("0");
-    }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
-    }
 
     mpz_t old_v;
     mpz_init(old_v);
@@ -147,17 +120,16 @@ void RLRequest::rl_hset(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_writebatch_put(write_batch, sizekey.data(), sizekey.size(), str_newv, strlen(str_newv));
-    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-    leveldb_writebatch_destroy(write_batch);
-    free(str_newv);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
-    }
+    write_batch.Put(sizekey, str_newv);
+    status = connection->server->db[connection->db_index]->Write(
+        connection->server->write_options, &write_batch);
 
-    connection->write_integer(str_delta, strlen(str_delta));
+    if(!status.ok()) {
+        connection->write_error("HSET ERROR");
+    } else {
+        connection->write_integer(str_delta, strlen(str_delta));
+    }
+    free(str_newv);
     free(str_delta);
 }
 
@@ -170,62 +142,48 @@ void RLRequest::rl_hsetnx(){
     string &hname = args[0];
     uint32_t new_mem = 0;
 
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
-
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    string out;
+    leveldb::Status status;
+    leveldb::WriteBatch write_batch;
 
     string sizekey = _encode_compdata_size_key(hname, CompDataType::HASH);
     string key = _encode_hash_key(hname, args[1]);
 
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          key.data(), key.size(), &out_size, &err);
-    if(err) {
-        puts(err);
-        connection->write_error(err);
-        free(err);
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
+    if(!status.ok() && !status.IsNotFound()) {
+        connection->write_error("HSETNX ERROR 1");
         return;
     }
 
-    if(!out) {
+    if(status.IsNotFound()) {
         // set value
-        leveldb_writebatch_put(write_batch,key.data(), key.size(), args[2].data(), args[2].size());
+        write_batch.Put(key, args[2]);
         ++new_mem;
-    } else {
-        free(out);
-        out = 0;
     }
 
     if(new_mem == 0){
         connection->write_integer("0", 1);
-        leveldb_writebatch_destroy(write_batch);
         return;
     }
     // update size!
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          sizekey.data(), sizekey.size(), &out_size, &err);
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, sizekey, &out);
 
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
+    char *str_oldv=NULL;
+    if(status.IsNotFound()){
+        str_oldv = strdup("0");
+    }else if(status.ok()){
+        str_oldv=(char*)malloc(out.size()+1);
+        memcpy(str_oldv, out.data(), out.size());
+        str_oldv[out.size()]=0;
+    }else {
+        connection->write_error("HSETNX ERROR 2");
     }
 
     mpz_t delta;
     mpz_init(delta);
     mpz_set_ui(delta, new_mem);
-
-    char *str_oldv=NULL;
-    if(!out){
-        str_oldv = strdup("0");
-    }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
-    }
 
     mpz_t old_v;
     mpz_init(old_v);
@@ -237,17 +195,17 @@ void RLRequest::rl_hsetnx(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_writebatch_put(write_batch, sizekey.data(), sizekey.size(), str_newv, strlen(str_newv));
-    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-    leveldb_writebatch_destroy(write_batch);
-    free(str_newv);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
-    }
+    write_batch.Put(sizekey, str_newv);
+    status = connection->server->db[connection->db_index]->Write(
+        connection->server->write_options, &write_batch);
 
-    connection->write_integer(str_delta, strlen(str_delta));
+
+    if(!status.ok()) {
+        connection->write_error("HSETNX ERROR 3");
+    } else {
+        connection->write_integer(str_delta, strlen(str_delta));
+    }
+    free(str_newv);
     free(str_delta);
 }
 
@@ -261,36 +219,22 @@ void RLRequest::rl_hdel(){
     string sizekey = _encode_compdata_size_key(hname, CompDataType::HASH);
     uint32_t del_mem = 0;
 
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
+    string out;
+    leveldb::Status status;
 
     for(uint32_t i=1; i<args.size(); i++){
         string key = _encode_hash_key(hname, args[i]);
 
-        out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-              key.data(), key.size(), &out_size, &err);
-        if(err) {
-            puts(err);
-            free(err);
-            err = 0;
-            out = 0;
-            continue;
-        }
+        status = connection->server->db[connection->db_index]->Get(
+            connection->server->read_options, key, &out);
 
-        if(!out) {
+        if(status.IsNotFound()) {
             // not exist
-        } else {
-            free(out);
-            out = 0;
+        } else if(status.ok()) {
             // delete value
-            leveldb_delete(connection->server->db[connection->db_index], connection->server->write_options,
-                key.data(), key.size(), &err);
-            if(err){
-                puts(err);
-                free(err);
-                err = 0;
-            }else{
+            status = connection->server->db[connection->db_index]->Delete(
+                connection->server->write_options, key);
+            if(status.ok()) {
                 ++del_mem;
             }
         }
@@ -300,29 +244,22 @@ void RLRequest::rl_hdel(){
         return;
     }
     // update size!
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          sizekey.data(), sizekey.size(), &out_size, &err);
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, sizekey, &out);
 
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
+    char *str_oldv=NULL;
+    if(status.ok()){
+        str_oldv=(char*)malloc(out.size()+1);
+        memcpy(str_oldv, out.data(), out.size());
+        str_oldv[out.size()]=0;
+    }else{
+        connection->write_error("HDEL ERROR 1");
+        return;
     }
 
     mpz_t delta;
     mpz_init(delta);
     mpz_set_ui(delta, del_mem);
-
-    char *str_oldv=NULL;
-    if(!out){
-        str_oldv = strdup("0");
-    }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
-    }
 
     mpz_t old_v;
     mpz_init(old_v);
@@ -334,17 +271,16 @@ void RLRequest::rl_hdel(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-        sizekey.data(), sizekey.size(), str_newv, strlen(str_newv), &err);
+    status = connection->server->db[connection->db_index]->Put(
+        connection->server->write_options, sizekey, str_newv);
 
-    free(str_newv);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
+    if(!status.ok()) {
+        connection->write_error("HDEL ERROR 2");
+    } else {
+        connection->write_integer(str_delta, strlen(str_delta));
     }
 
-    connection->write_integer(str_delta, strlen(str_delta));
+    free(str_newv);
     free(str_delta);
 }
 
@@ -353,29 +289,24 @@ void RLRequest::rl_hexists(){
         connection->write_error("ERR wrong number of arguments for 'hexists' command");
         return;
     }
+
     string &hname = args[0];
-
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
-
     string key = _encode_hash_key(hname, args[1]);
 
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          key.data(), key.size(), &out_size, &err);
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
+    string out;
+    leveldb::Status status;
 
-    if(!out) {
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
+
+    if(status.IsNotFound()) {
         // not a member
         connection->write_integer("0", 1);
-    } else {
-        free(out);
+    } else if(status.ok()) {
         // is a member
         connection->write_integer("1", 1);
+    } else {
+        connection->write_error("HEXISTS ERROR 1");
     }
 }
 
@@ -386,29 +317,30 @@ void RLRequest::rl_hgetall(){
     }
 
     std::vector<std::string> kvs;
-    const char *key, *val;
-    size_t key_len, val_len;
+    leveldb::Slice key, val;
 
     string hash_begin = _encode_hash_key(args[0], "");
-    leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
-                              connection->server->read_options);
-    leveldb_iter_seek(kit, hash_begin.data(), hash_begin.size());
+    leveldb::Iterator *kit = connection->server->db[connection->db_index]->NewIterator(
+        connection->server->read_options);
 
-    while(leveldb_iter_valid(kit)) {
-        key = leveldb_iter_key(kit, &key_len);
-        val = leveldb_iter_value(kit, &val_len);
-        if(strncmp(hash_begin.data(), key,  hash_begin.size()) == 0){
-            const string &k = _decode_key(std::string(key, key_len));
+    kit->Seek(hash_begin);
+
+    while(kit->Valid()) {
+        key = kit->key();
+        val = kit->value();
+        if(strncmp(hash_begin.data(), key.data(),  hash_begin.size()) == 0){
+            const string &k = _decode_key(key.ToString());
             if(k.size()>0){
                 kvs.push_back(k);
-                kvs.push_back(std::string(val, val_len));
+                kvs.push_back(val.ToString());
             }
-            leveldb_iter_next(kit);
+            kit->Next();
         }else{
             break;
         }
     }
-    leveldb_iter_destroy(kit);
+
+    delete kit;
 
     connection->write_mbulk_header(kvs.size());
     std::vector<std::string>::iterator it=kvs.begin();
@@ -422,27 +354,27 @@ void RLRequest::rl_hkeys(){
     }
 
     std::vector<std::string> keys;
-    const char *key;
-    size_t key_len;
+    leveldb::Slice key;
 
     string hash_begin = _encode_hash_key(args[0], "");
-    leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
-                              connection->server->read_options);
-    leveldb_iter_seek(kit, hash_begin.data(), hash_begin.size());
+    leveldb::Iterator *kit = connection->server->db[connection->db_index]->NewIterator(
+        connection->server->read_options);
 
-    while(leveldb_iter_valid(kit)) {
-        key = leveldb_iter_key(kit, &key_len);
-        if(strncmp(hash_begin.data(), key,  hash_begin.size()) == 0){
-            const string &k = _decode_key(std::string(key, key_len));
+    kit->Seek(hash_begin);
+
+    while(kit->Valid()) {
+        key = kit->key();
+        if(strncmp(hash_begin.data(), key.data(),  hash_begin.size()) == 0){
+            const string &k = _decode_key(key.ToString());
             if(k.size()>0){
                 keys.push_back(k);
             }
-            leveldb_iter_next(kit);
+            kit->Next();
         }else{
             break;
         }
     }
-    leveldb_iter_destroy(kit);
+    delete kit;
 
     connection->write_mbulk_header(keys.size());
     std::vector<std::string>::iterator it=keys.begin();
@@ -456,29 +388,28 @@ void RLRequest::rl_hvals(){
     }
 
     std::vector<std::string> vals;
-    const char *key, *val;
-    size_t key_len, val_len;
+    leveldb::Slice key, val;
 
     string hash_begin = _encode_hash_key(args[0], "");
-    leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
-                              connection->server->read_options);
-    leveldb_iter_seek(kit, hash_begin.data(), hash_begin.size());
+    leveldb::Iterator *kit = connection->server->db[connection->db_index]->NewIterator(
+        connection->server->read_options);
+    kit->Seek(hash_begin);
 
-    while(leveldb_iter_valid(kit)) {
-        key = leveldb_iter_key(kit, &key_len);
-        val = leveldb_iter_value(kit, &val_len);
-        if(strncmp(hash_begin.data(), key,  hash_begin.size()) == 0){
-            const string &k = _decode_key(std::string(key, key_len));
-            if(k.size()>0){
+    while(kit->Valid()) {
+        key = kit->key();
+        val = kit->value();
+        if(strncmp(hash_begin.data(), key.data(),  hash_begin.size()) == 0){
+            //const string &k = _decode_key(key.ToString());
+            if(key.size()>0){
                 //vals.push_back(k);
-                vals.push_back(std::string(val, val_len));
+                vals.push_back(val.ToString());
             }
-            leveldb_iter_next(kit);
+            kit->Next();
         }else{
             break;
         }
     }
-    leveldb_iter_destroy(kit);
+    delete kit;
 
     connection->write_mbulk_header(vals.size());
     std::vector<std::string>::iterator it=vals.begin();
@@ -492,21 +423,14 @@ void RLRequest::rl_hlen(){
     }
 
     string sizekey = _encode_compdata_size_key(args[0], CompDataType::HASH);
-    size_t out_size = 0;
-    char* err = 0;
-    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                sizekey.data(), sizekey.size(), &out_size, &err);
 
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
+    string out;
+    leveldb::Status status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, sizekey, &out);
 
-    if(!out) {
-        connection->write_nil();
+    if(!status.ok()) {
+        connection->write_error("HLEN ERROR 1");
     } else {
-        connection->write_integer(out, out_size);
-        free(out);
+        connection->write_integer(out.data(), out.size());
     }
 }
