@@ -15,6 +15,8 @@
 #include <netinet/in.h>  /* inet_ntoa */
 #include <arpa/inet.h>   /* inet_ntoa */
 
+#include <leveldb/filter_policy.h>
+
 #include "rl_util.h"
 #include "rl_server.h"
 #include "rl_connection.h"
@@ -35,24 +37,32 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
     db_num(dbn), db_path(_db_path), hostaddr(_hostaddr), port(_port),
     fd(-1), clients_num(0)
 {
-    options.create_if_missing = true;
 
     leveldb::Status status;
 
     if(db_num<1){
+        options = new leveldb::Options[1];
+        options[0].create_if_missing = true;
+        options[0].filter_policy = leveldb::NewBloomFilterPolicy(10);
+
         db=new leveldb::DB*[1];
-        status = leveldb::DB::Open(options, db_path.c_str(), &db[0]);
+        status = leveldb::DB::Open(options[0], db_path.c_str(), &db[0]);
         if(!status.ok()) {
             puts("leveldb open error");
             exit(1);
         }
     }else{
+        options = new leveldb::Options[db_num];
+
         db=new leveldb::DB*[db_num];
         char buf[16];
         for(int i=0;i<db_num;i++){
+            options[i].create_if_missing = true;
+            options[i].filter_policy = leveldb::NewBloomFilterPolicy(16);
+
             int count = sprintf(buf, "/db-%03d", i);
             //TODO the db path
-            status = leveldb::DB::Open(options, (db_path+std::string(buf,count)).c_str(), &db[i]);
+            status = leveldb::DB::Open(options[i], (db_path+std::string(buf,count)).c_str(), &db[i]);
             if(!status.ok()) {
                 puts("leveldb open error:");
                 puts(buf);
@@ -68,12 +78,15 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
 
 RLServer::~RLServer(){
     if(db_num<1){
+        delete options[0].filter_policy;
         delete db[0];
     }else{
         for(int i=0;i<db_num;i++){
+            delete options[i].filter_policy;
             delete db[i];
         }
     }
+    delete[] options;
     delete[] db;
     if(loop) ev_loop_destroy(loop);
     close(fd);

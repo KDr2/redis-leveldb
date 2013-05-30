@@ -26,7 +26,7 @@ public:
     int clients_num;
     struct ev_loop* loop;
     ev_io connection_watcher;
-    leveldb::Options options;
+    leveldb::Options *options;
     leveldb::ReadOptions read_options;
     leveldb::WriteOptions write_options;
     leveldb::DB **db;
