@@ -20,6 +20,8 @@
 
 #include <gmp.h>
 
+#include <leveldb/write_batch.h>
+
 #include "rl.h"
 #include "rl_util.h"
 #include "rl_server.h"
@@ -36,62 +38,44 @@ void RLRequest::rl_sadd(){
     string sizekey = _encode_compdata_size_key(sname, CompDataType::SET);
     uint32_t new_mem = 0;
 
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
-
-    leveldb_writebatch_t *write_batch = leveldb_writebatch_create();
+    std::string out;
+    leveldb::WriteBatch write_batch;
+    leveldb::Status status;
 
     for(uint32_t i=1; i<args.size(); i++){
         string key = _encode_set_key(sname, args[i]);
 
-        out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                    key.data(), key.size(), &out_size, &err);
-        if(err) {
-            free(err);
-            puts(err);
-            err = 0;
-            out = 0;
-            continue;
-        }
+        status = connection->server->db[connection->db_index]->Get(
+            connection->server->read_options, key, &out);
 
-        if(!out) {
+        if(status.IsNotFound()) {
             // set value
-            leveldb_writebatch_put(write_batch, key.data(), key.size(), "\1", 1);
+            write_batch.Put(key, "\1");
             ++new_mem;
-        } else {
-            free(out);
-            out = 0;
         }
     }
     if(new_mem == 0){
         connection->write_integer("0", 1);
-        leveldb_writebatch_destroy(write_batch);
         return;
     }
     // update size!
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          sizekey.data(), sizekey.size(), &out_size, &err);
-
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
-    }
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, sizekey, &out);
 
     mpz_t delta;
     mpz_init(delta);
     mpz_set_ui(delta, new_mem);
 
-    char *str_oldv=NULL;
-    if(!out){
+    char *str_oldv = NULL;
+    if(status.IsNotFound()){
         str_oldv = strdup("0");
+    }else if(status.ok()){
+        str_oldv = (char*)malloc(out.size()+1);
+        memcpy(str_oldv, out.data(), out.size());
+        str_oldv[out.size()] = 0;
     }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
+        connection->write_error("SADD ERROR");
+        return;
     }
 
     mpz_t old_v;
@@ -104,18 +88,16 @@ void RLRequest::rl_sadd(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_writebatch_put(write_batch, sizekey.data(), sizekey.size(), str_newv, strlen(str_newv));
+    write_batch.Put(sizekey, str_newv);
 
-    leveldb_write(connection->server->db[connection->db_index], connection->server->write_options, write_batch, &err);
-    leveldb_writebatch_destroy(write_batch);
-    free(str_newv);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
+    status = connection->server->db[connection->db_index]->Write(connection->server->write_options, &write_batch);
+
+    if(!status.ok()) {
+        connection->write_error("SADD ERROR");
+    }else{
+        connection->write_integer(str_delta, strlen(str_delta));
     }
-
-    connection->write_integer(str_delta, strlen(str_delta));
+    free(str_newv);
     free(str_delta);
 }
 
@@ -129,36 +111,23 @@ void RLRequest::rl_srem(){
     string sizekey = _encode_compdata_size_key(sname, CompDataType::SET);
     uint32_t del_mem = 0;
 
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
+    std::string out;
+    leveldb::Status status;
 
     for(uint32_t i=1; i<args.size(); i++){
         string key = _encode_set_key(sname, args[i]);
 
-        out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-              key.data(), key.size(), &out_size, &err);
-        if(err) {
-            puts(err);
-            free(err);
-            err = 0;
-            out = 0;
-            continue;
-        }
+        status = connection->server->db[connection->db_index]->Get(
+            connection->server->read_options, key, &out);
 
-        if(!out) {
+        if(status.IsNotFound()) {
             // not exist
-        } else {
-            free(out);
-            out = 0;
+        } else if(status.ok()){
+
             // delete value
-            leveldb_delete(connection->server->db[connection->db_index], connection->server->write_options,
-                key.data(), key.size(), &err);
-            if(err){
-                puts(err);
-                free(err);
-                err = 0;
-            }else{
+            status = connection->server->db[connection->db_index]->Delete(
+                connection->server->write_options, key);
+            if(status.ok()){
                 ++del_mem;
             }
         }
@@ -168,29 +137,23 @@ void RLRequest::rl_srem(){
         return;
     }
     // update size!
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          sizekey.data(), sizekey.size(), &out_size, &err);
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, sizekey, &out);
 
-    if(err) {
-        puts(err);
-        free(err);
-        err = 0;
-        out = 0;
+    char *str_oldv=NULL;
+    if(status.IsNotFound()){
+        str_oldv = strdup("0");
+    }else if(status.ok()){
+        str_oldv=(char*)malloc(out.size()+1);
+        memcpy(str_oldv, out.data(), out.size());
+        str_oldv[out.size()]=0;
+    }else{
+        //TODO
     }
 
     mpz_t delta;
     mpz_init(delta);
     mpz_set_ui(delta, del_mem);
-
-    char *str_oldv=NULL;
-    if(!out){
-        str_oldv = strdup("0");
-    }else{
-        str_oldv=(char*)malloc(out_size+1);
-        memcpy(str_oldv,out,out_size);
-        str_oldv[out_size]=0;
-        free(out);
-    }
 
     mpz_t old_v;
     mpz_init(old_v);
@@ -202,17 +165,16 @@ void RLRequest::rl_srem(){
     mpz_clear(delta);
     mpz_clear(old_v);
 
-    leveldb_put(connection->server->db[connection->db_index], connection->server->write_options,
-        sizekey.data(), sizekey.size(), str_newv, strlen(str_newv), &err);
+    status = connection->server->db[connection->db_index]->Put(
+        connection->server->write_options,
+        sizekey, str_newv);
 
-    free(str_newv);
-    if(err) {
-        connection->write_error(err);
-        free(err);
-        return;
+    if(!status.ok()) {
+        connection->write_error("SREM ERROR");
+    }else{
+        connection->write_integer(str_delta, strlen(str_delta));
     }
-
-    connection->write_integer(str_delta, strlen(str_delta));
+    free(str_newv);
     free(str_delta);
 }
 
@@ -223,22 +185,19 @@ void RLRequest::rl_scard(){
     }
 
     string sizekey = _encode_compdata_size_key(args[0], CompDataType::SET);
-    size_t out_size = 0;
-    char* err = 0;
-    char* out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-                sizekey.data(), sizekey.size(), &out_size, &err);
 
-    if(err) {
-        puts(err);
-        free(err);
-        out = 0;
-    }
+    std::string out;
 
-    if(!out) {
+    leveldb::Status status  = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options,
+        sizekey, &out);
+
+    if(status.IsNotFound()) {
         connection->write_nil();
+    } else if(status.ok()){
+        connection->write_integer(out.data(), out.size());
     } else {
-        connection->write_integer(out, out_size);
-        free(out);
+        connection->write_error("SCARD ERROR");
     }
 }
 
@@ -249,25 +208,25 @@ void RLRequest::rl_smembers(){
     }
 
     std::vector<std::string> keys;
-    const char *key;
-    size_t key_len;
+    leveldb::Slice key;
 
     string set_begin = _encode_set_key(args[0], "");
-    leveldb_iterator_t *kit = leveldb_create_iterator(connection->server->db[connection->db_index],
-                              connection->server->read_options);
-    leveldb_iter_seek(kit, set_begin.data(), set_begin.size());
+    leveldb::Iterator *kit = connection->server->db[connection->db_index]->NewIterator(
+        connection->server->read_options);
 
-    while(leveldb_iter_valid(kit)) {
-        key = leveldb_iter_key(kit, &key_len);
-        if(strncmp(set_begin.data(), key,  set_begin.size()) == 0){
-            const string &v = _decode_key(std::string(key, key_len));
+    kit->Seek(set_begin);
+
+    while(kit->Valid()) {
+        key = kit->key();
+        if(strncmp(set_begin.data(), key.data(),  set_begin.size()) == 0){
+            const string &v = _decode_key(key.ToString());
             if(v.size()>0)keys.push_back(v);
-            leveldb_iter_next(kit);
+            kit->Next();
         }else{
             break;
         }
     }
-    leveldb_iter_destroy(kit);
+    delete kit;
 
     connection->write_mbulk_header(keys.size());
     //std::for_each(keys.begin(), keys.end(), std::bind1st(std::mem_fun(&RLConnection::write_bulk),connection));
@@ -280,30 +239,23 @@ void RLRequest::rl_sismember(){
         connection->write_error("ERR wrong number of arguments for 'sismember' command");
         return;
     }
+
     string &sname = args[0];
-
-    char *out = 0;
-    char *err = 0;
-    size_t out_size = 0;
-
     string key = _encode_set_key(sname, args[1]);
 
-    out = leveldb_get(connection->server->db[connection->db_index], connection->server->read_options,
-          key.data(), key.size(), &out_size, &err);
-    if(err) {
-        puts(err);
-        free(err);
-        connection->write_error(err);
-        return;
-    }
+    string out;
+    leveldb::Status status;
 
-    if(!out) {
+    status = connection->server->db[connection->db_index]->Get(
+        connection->server->read_options, key, &out);
+
+    if(status.IsNotFound()) {
         // not a member
         connection->write_integer("0", 1);
-    } else {
-        free(out);
+    } else if(status.ok()){
         // is a member
         connection->write_integer("1", 1);
+    }else {
+        connection->write_error("SISMEMBER ERROR");
     }
-
 }
