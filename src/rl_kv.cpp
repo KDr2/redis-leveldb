@@ -39,12 +39,15 @@ void RLRequest::rl_incr(){
 
 
     char *str_oldv=NULL;
-    if(!status.ok()){
+    if(status.IsNotFound()){
         str_oldv = strdup("0");
-    }else{
+    }else if(status.ok()){
         str_oldv=(char*)malloc(out.size()+1);
         memcpy(str_oldv,out.data(),out.size());
         str_oldv[out.size()]=0;
+    }else{
+        connection->write_error("INCR ERROR 1");
+        return;
     }
 
     mpz_t old_v;
@@ -59,12 +62,10 @@ void RLRequest::rl_incr(){
              args[0], leveldb::Slice(str_newv, strlen(str_newv)));
 
     if(!status.ok()) {
-        connection->write_error("INCR ERROR");
-        free(str_newv);
-        return;
+        connection->write_error("INCR ERROR 2");
+    } else {
+        connection->write_integer(str_newv, strlen(str_newv));
     }
-
-    connection->write_integer(str_newv, strlen(str_newv));
     free(str_newv);
 }
 
@@ -81,12 +82,15 @@ void RLRequest::rl_incrby(){
     mpz_set_str(delta,args[1].c_str(),10);
 
     char *str_oldv=NULL;
-    if(!status.ok()){
+    if(status.IsNotFound()){
         str_oldv = strdup("0");
-    }else{
+    }else if(status.ok()){
         str_oldv=(char*)malloc(out.size()+1);
         memcpy(str_oldv,out.data(),out.size());
         str_oldv[out.size()]=0;
+    }else{
+        connection->write_error("INCRBY ERROR 1");
+        return;
     }
 
     mpz_t old_v;
@@ -102,12 +106,10 @@ void RLRequest::rl_incrby(){
              args[0], leveldb::Slice(str_newv, strlen(str_newv)));
 
     if(!status.ok()) {
-        connection->write_error("INCRBY ERROR");
-        free(str_newv);
-        return;
+        connection->write_error("INCRBY ERROR 2");
+    }else{
+        connection->write_integer(str_newv, strlen(str_newv));
     }
-
-    connection->write_integer(str_newv, strlen(str_newv));
     free(str_newv);
 }
 
@@ -124,12 +126,12 @@ void RLRequest::rl_get(){
     status = connection->server->db[connection->db_index]->Get(connection->server->read_options,
              args[0], &out);
 
-    if(!status.ok()) {
-        connection->write_error("GET ERROR");
-    }else if(out.size() == 0) {
+    if(status.IsNotFound()) {
         connection->write_nil();
-    } else {
+    }else if(status.ok()) {
         connection->write_bulk(out);
+    } else {
+        connection->write_error("GET ERROR 1");
     }
 }
 
@@ -146,11 +148,10 @@ void RLRequest::rl_set(){
              args[0], args[1]);
 
     if(!status.ok()) {
-        connection->write_error("SET ERROR");
-        return;
+        connection->write_error("SET ERROR 1");
+    } else {
+        connection->write_status("OK");
     }
-
-    connection->write_status("OK");
 }
 
 void RLRequest::rl_del(){
@@ -222,7 +223,7 @@ void RLRequest::rl_mset(){
     leveldb::Status status = connection->server->db[connection->db_index]->Write(
         connection->server->write_options, &write_batch);
     if(!status.ok()) {
-        connection->write_error("MSET ERROR");
+        connection->write_error("MSET ERROR 1");
     } else {
         connection->write_status("OK");
     }

@@ -49,7 +49,7 @@ void RLRequest::rl_hget(){
     } else if(status.ok()){
         connection->write_bulk(out.data(), out.size());
     } else {
-        connection->write_error("HGET ERROR");
+        connection->write_error("HGET ERROR 1");
     }
 }
 
@@ -84,7 +84,7 @@ void RLRequest::rl_hset(){
         status = connection->server->db[connection->db_index]->Write(
             connection->server->write_options, &write_batch);
         if(!status.ok()){
-            connection->write_error("HSET ERROR");
+            connection->write_error("HSET ERROR 1");
         }else{
             connection->write_integer("0", 1);
         }
@@ -102,7 +102,7 @@ void RLRequest::rl_hset(){
         memcpy(str_oldv, out.data(), out.size());
         str_oldv[out.size()]=0;
     }else{
-        connection->write_error("HSET ERROR");
+        connection->write_error("HSET ERROR 2");
         return;
     }
 
@@ -125,7 +125,7 @@ void RLRequest::rl_hset(){
         connection->server->write_options, &write_batch);
 
     if(!status.ok()) {
-        connection->write_error("HSET ERROR");
+        connection->write_error("HSET ERROR 3");
     } else {
         connection->write_integer(str_delta, strlen(str_delta));
     }
