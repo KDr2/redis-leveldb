@@ -74,7 +74,7 @@ void RLRequest::rl_sadd(){
         memcpy(str_oldv, out.data(), out.size());
         str_oldv[out.size()] = 0;
     }else{
-        connection->write_error("SADD ERROR");
+        connection->write_error("SADD ERROR 1");
         return;
     }
 
@@ -93,7 +93,7 @@ void RLRequest::rl_sadd(){
     status = connection->server->db[connection->db_index]->Write(connection->server->write_options, &write_batch);
 
     if(!status.ok()) {
-        connection->write_error("SADD ERROR");
+        connection->write_error("SADD ERROR 2");
     }else{
         connection->write_integer(str_delta, strlen(str_delta));
     }
@@ -170,7 +170,7 @@ void RLRequest::rl_srem(){
         sizekey, str_newv);
 
     if(!status.ok()) {
-        connection->write_error("SREM ERROR");
+        connection->write_error("SREM ERROR 1");
     }else{
         connection->write_integer(str_delta, strlen(str_delta));
     }
@@ -197,7 +197,7 @@ void RLRequest::rl_scard(){
     } else if(status.ok()){
         connection->write_integer(out.data(), out.size());
     } else {
-        connection->write_error("SCARD ERROR");
+        connection->write_error("SCARD ERROR 1");
     }
 }
 
@@ -256,6 +256,6 @@ void RLRequest::rl_sismember(){
         // is a member
         connection->write_integer("1", 1);
     }else {
-        connection->write_error("SISMEMBER ERROR");
+        connection->write_error("SISMEMBER ERROR 1");
     }
 }
