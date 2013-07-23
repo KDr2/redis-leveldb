@@ -79,7 +79,7 @@ Dependencies
 
 3. leveldb:
 
-  #. git clone git://github.com/appwilldev/redis-leveldb.git
+  #. git clone https://github.com/KDr2/redis-leveldb.git
   #. cd redis-leveldb
   #. git submodule init
   #. git submodule update
