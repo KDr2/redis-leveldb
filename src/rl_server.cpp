@@ -38,6 +38,10 @@ RLServer::RLServer(const char *_db_path, const char *_hostaddr, int _port, int d
     fd(-1), clients_num(0)
 {
 
+    printf("HOSTADDR:(%s)\n",hostaddr.c_str());
+    printf("DB_PATH:(%s)\n",db_path.c_str());
+    printf("PORT:(%d)\n",port);
+
     leveldb::Status status;
 
     if(db_num<1){
@@ -149,6 +153,7 @@ void RLServer::start()
     ev_io_set(&connection_watcher, fd, EV_READ);
     ev_io_start(loop, &connection_watcher);
 
+    printf("Server running successfully\n");
     ev_run(loop, 0);
 }
 
