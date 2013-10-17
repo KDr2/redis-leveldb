@@ -2,8 +2,8 @@
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
 ifeq ($(uname_S),Darwin)
-  LIBEV?=/opt/local
-  GMP?=/opt/local
+  LIBEV?=/usr/local
+  GMP?=/usr/local
 else
   LIBEV?=/usr
   GMP?=/usr
@@ -12,6 +12,10 @@ endif
 CFLAGS += -Wall -I$(LIBEV)/include -I$(GMP)/include -I../vendor/leveldb/include -std=c99
 CXXFLAGS += -Wall -I$(LIBEV)/include -I$(GMP)/include -I../vendor/leveldb/include
 LDFLAGS += ../vendor/libleveldb.a -lm -L$(LIBEV)/lib -lev -L$(GMP)/lib -lgmp
+
+ifeq ($(uname_S),Darwin)
+	LDFLAGS += -lsnappy
+endif
 
 ifeq ($(uname_S),Linux)
   LDFLAGS += -lpthread
