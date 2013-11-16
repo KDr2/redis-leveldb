@@ -20,13 +20,19 @@
 #include "rl_connection.h"
 #include "rl_request.h"
 
-#define CHECK_BUFFER(N) do{                                                      \
-        if(next_idx+(N)>(read_buffer+buffered_data)){                            \
-            next_idx=old_ni;                                                     \
-            memmove(read_buffer,next_idx,buffered_data-(next_idx-read_buffer));  \
-            buffered_data-=(next_idx-read_buffer);next_idx=read_buffer;          \
-            read_buffer[buffered_data]=0;                                        \
-            return 0;}}while(0)
+#define CHECK_BUFFER(N) do                                                           \
+        {                                                                            \
+            if(N>READ_BUFFER){                                                       \
+               return -2;                                                            \
+            }                                                                        \
+            if(next_idx+(N)>(read_buffer+buffered_data)){                            \
+                next_idx=old_ni;                                                     \
+                memmove(read_buffer,next_idx,buffered_data-(next_idx-read_buffer));  \
+                buffered_data-=(next_idx-read_buffer);next_idx=read_buffer;          \
+                read_buffer[buffered_data]=0;                                        \
+                return 0;                                                            \
+            }                                                                        \
+       }while(0)
 
 #define START_WRITER() do{if(!writer_started){writer_started=true;ev_io_start(server->loop, &write_watcher);}}while(0)
 
@@ -186,9 +192,13 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
 
     int ret = connection->do_read();
     switch(ret) {
+    case -2:
+        puts("command too long!");
+        delete connection;
+        break;
     case -1:
         puts("bad protocol error");
-        // fallthrough
+        delete connection;
         break;
     case 1:
         connection->buffered_data = 0;
