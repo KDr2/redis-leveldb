@@ -170,7 +170,10 @@ void RLConnection::on_readable(struct ev_loop *loop, ev_io *watcher, int revents
     assert(watcher == &connection->read_watcher);
 
     // No more buffer space.
-    if(left == 0) return;
+    if(left == 0) {
+        delete connection;
+        return;
+    }
 
     if(EV_ERROR & revents) {
         puts("on_readable() got error event, closing connection.");
