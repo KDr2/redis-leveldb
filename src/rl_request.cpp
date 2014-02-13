@@ -18,7 +18,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-#include <gmp.h>
 
 #include <leveldb/iterator.h>
 
