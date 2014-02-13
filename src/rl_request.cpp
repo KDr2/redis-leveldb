@@ -149,7 +149,7 @@ void RLRequest::rl_dummy(){
 
 
 void RLRequest::rl_select(){
-    if(connection->server->db_num<1){
+    if(connection->server->db_num != 0){
         connection->write_error("ERR redis-leveldb is running in single-db mode");
         return;
     }
@@ -163,7 +163,7 @@ void RLRequest::rl_select(){
         return;
     }
     int target=strtol(args[0].c_str(),NULL,10);
-    if(target<0||target>=connection->server->db_num){
+    if(target<0||target > connection->server->db_num){
         connection->write_error("ERR invalid DB index");
         return;
     }
