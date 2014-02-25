@@ -2,6 +2,10 @@
 
 default: all
 
+
 .DEFAULT:
 	cd src && $(MAKE) $@
+
+deb:        
+	dpkg-buildpackage
 

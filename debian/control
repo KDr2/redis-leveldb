@@ -1,0 +1,14 @@
+Source: redis-leveldb
+Section: misc
+Priority: extra
+Maintainer: Pedro Larroy <pedro.larroy.lists@gmail.com>
+Build-Depends: debhelper (>= 8.0.0), g++, make
+Standards-Version: 3.9.2
+Homepage: https://github.com/larroy/redis-leveldb
+#Vcs-Git: https://github.com/larroy/redis-leveldb.git
+#Vcs-Browser: https://github.com/larroy/redis-leveldb
+
+Package: redis-leveldb
+Architecture: amd64
+Depends:
+Description: A redis-protocol compatible persistent storage server using leveldb as a storage engine
