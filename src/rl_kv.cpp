@@ -31,6 +31,11 @@
 
 void RLRequest::rl_incr(){
 
+    if(args.size()!=1){
+        connection->write_error("ERR wrong number of arguments for 'incr' command");
+        return;
+    }
+
     std::string out;
     leveldb::Status status;
 
@@ -71,6 +76,11 @@ void RLRequest::rl_incr(){
 
 
 void RLRequest::rl_incrby(){
+
+    if(args.size()!=2){
+        connection->write_error("ERR wrong number of arguments for 'incrby' command");
+        return;
+    }
 
     std::string out;
     leveldb::Status status;
