@@ -193,7 +193,7 @@ void RLRequest::rl_scard(){
         sizekey, &out);
 
     if(status.IsNotFound()) {
-        connection->write_nil();
+        connection->write_integer("0", 1);
     } else if(status.ok()){
         connection->write_integer(out.data(), out.size());
     } else {
