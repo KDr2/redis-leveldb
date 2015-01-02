@@ -11,11 +11,7 @@ endif
 
 CFLAGS += -Wall -I$(LIBEV)/include -I$(GMP)/include -I../vendor/leveldb/include -std=c99
 CXXFLAGS += -Wall -I$(LIBEV)/include -I$(GMP)/include -I../vendor/leveldb/include
-LDFLAGS += ../vendor/libleveldb.a -lm -L$(LIBEV)/lib -lev -L$(GMP)/lib -lgmp
-
-ifeq ($(uname_S),Darwin)
-	LDFLAGS += -lsnappy
-endif
+LDFLAGS += ../vendor/libleveldb.a -lm -L$(LIBEV)/lib -lev -L$(GMP)/lib -lgmp -lsnappy
 
 ifeq ($(uname_S),Linux)
   LDFLAGS += -lpthread
