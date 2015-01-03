@@ -9,3 +9,6 @@ default: all
 deb:        
 	dpkg-buildpackage
 
+.PHONY: test
+test:
+	@prove -I t/
