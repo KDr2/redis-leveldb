@@ -20,7 +20,7 @@ sub start {
     if ($child_pid) {
         $self->{'pid'} = $child_pid;
     } else {
-        my $null_fd = POSIX::open("/dev/null",&POSIX::O_WRONLY);
+        my $null_fd = POSIX::open("/dev/null", &POSIX::O_WRONLY);
         POSIX::dup2($null_fd, 1);
         exec cwd() . '/redis-leveldb' or die "# can not start the server instance!";
     }
