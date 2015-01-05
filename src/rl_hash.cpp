@@ -76,8 +76,11 @@ void RLRequest::rl_hset(){
     // set even exists
     write_batch.Put(key, args[2]);
 
-    if(status.ok()){
+    if(status.IsNotFound()){
         ++new_mem;
+    }else if(!status.ok()) {
+        connection->write_error("HSET ERROR 0");
+        return;
     }
 
     if(new_mem == 0){

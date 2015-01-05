@@ -9,7 +9,7 @@ use Redis;
 
 sub new {
     my $class = shift;
-    return bless {}, $class;
+    return bless {data_dir=> "./tmp.test-db-dir"}, $class;
 }
 
 sub start {
@@ -17,12 +17,15 @@ sub start {
     my ($client, $retry_times) =(undef, 30);
     my $child_pid = fork();
 
+    qx(rm -fr $self->{data_dir});
+
     if ($child_pid) {
         $self->{'pid'} = $child_pid;
     } else {
         my $null_fd = POSIX::open("/dev/null", &POSIX::O_WRONLY);
         POSIX::dup2($null_fd, 1);
-        exec cwd() . '/redis-leveldb' or die "# can not start the server instance!";
+        exec (cwd() . '/redis-leveldb', '-D', $self->{data_dir})
+            or die "# can not start the server instance!";
     }
 
     while (!$client && $retry_times > 0) {
@@ -40,11 +43,20 @@ sub stop {
     my $self = shift;
     my $stop_cmd = "kill -INT " . $self->{'pid'};
     qx($stop_cmd) and die "# server stop error!";
+    qx(rm -fr $self->{data_dir});
 }
 
 sub client {
     my $self = shift;
     return $self->{'client'};
+}
+
+sub try {
+    my $self = shift;
+    my $cmd = shift;
+    return eval {
+        $self->{'client'}->$cmd(@_);
+    };
 }
 
 1;

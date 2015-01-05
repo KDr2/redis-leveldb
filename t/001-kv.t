@@ -6,7 +6,7 @@ use Test::More;
 use Tester;
 no warnings 'experimental::smartmatch';
 
-our $tester = Tester->new;
+my $tester = Tester->new;
 $tester->start();
 
 foreach (1..20) {
