@@ -20,10 +20,10 @@ for ( 1..20 ) {
 ok($tester->try("hlen", $hash_name) == 20, 'command hset/hlen');
 ok($tester->try("hget", $hash_name, "key-7") eq "val-7", 'command hget');
 
-ok($tester->try("hsetnx", $hash_name, "key-7", "val-7") == 0, 'command hsetnx 1');
-ok($tester->try("hsetnx", $hash_name, "key-21", "val-21") == 1, 'command hsetnx 2');
+is($tester->try("hsetnx", $hash_name, "key-7", "val-7"), 0, 'command hsetnx 1');
+is($tester->try("hsetnx", $hash_name, "key-21", "val-21"), 1, 'command hsetnx 2');
 
-ok($tester->try("hdel", $hash_name, "key-21") == 1, 'command hdel 1');
+is($tester->try("hdel", $hash_name, "key-21"), 1, 'command hdel 1');
 ok($tester->try("hlen", $hash_name) == 20, 'command hdel 2');
 
 ok($tester->try("hexists", $hash_name, "key-7"), 'command hexists');
