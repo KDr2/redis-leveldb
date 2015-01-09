@@ -4,12 +4,13 @@ use strict;
 use warnings;
 
 use Cwd qw(cwd);
-use POSIX qw(dup2);
+use POSIX;
 use Redis;
 
 sub new {
     my $class = shift;
-    return bless {data_dir=> "./tmp.test-db-dir"}, $class;
+    my $option = {data_dir => "./tmp.test-db-dir", @_};
+    return bless {option => $option}, $class;
 }
 
 sub start {
@@ -17,15 +18,17 @@ sub start {
     my ($client, $retry_times) =(undef, 30);
     my $child_pid = fork();
 
-    qx(rm -fr $self->{data_dir});
+    qx(rm -fr $self->{option}{data_dir});
 
     if ($child_pid) {
         $self->{'pid'} = $child_pid;
     } else {
         my $null_fd = POSIX::open("/dev/null", &POSIX::O_WRONLY);
         POSIX::dup2($null_fd, 1);
-        exec (cwd() . '/redis-leveldb', '-D', $self->{data_dir})
-            or die "# can not start the server instance!";
+        qx(mkdir -p $self->{option}{data_dir});
+        my @cmd = (cwd() . '/redis-leveldb', '-D', $self->{option}{data_dir});
+        push @cmd, "-M", $self->{option}{db_number} if defined($self->{option}{db_number});
+        exec @cmd or die "# can not start the server instance!";
     }
 
     while (!$client && $retry_times > 0) {
@@ -43,7 +46,7 @@ sub stop {
     my $self = shift;
     my $stop_cmd = "kill -INT " . $self->{'pid'};
     qx($stop_cmd) and die "# server stop error!";
-    qx(rm -fr $self->{data_dir});
+    qx(rm -fr $self->{option}{data_dir});
 }
 
 sub client {
