@@ -25,6 +25,7 @@ sub start {
     } else {
         my $null_fd = POSIX::open("/dev/null", &POSIX::O_WRONLY);
         POSIX::dup2($null_fd, 1);
+        POSIX::dup2($null_fd, 2);
         qx(mkdir -p $self->{option}{data_dir});
         my @cmd = (cwd() . '/redis-leveldb', '-D', $self->{option}{data_dir});
         push @cmd, "-M", $self->{option}{db_number} if defined($self->{option}{db_number});
@@ -46,6 +47,11 @@ sub stop {
     my $self = shift;
     my $stop_cmd = "kill -INT " . $self->{'pid'};
     qx($stop_cmd) and die "# server stop error!";
+    qx(rm -fr $self->{option}{data_dir});
+}
+
+sub clean_data {
+    my $self = shift;
     qx(rm -fr $self->{option}{data_dir});
 }
 
