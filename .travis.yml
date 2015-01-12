@@ -1,0 +1,26 @@
+language: cpp
+os:
+    - linux
+    - osx
+
+perl:
+    - "5.12"
+    - "5.20"
+
+notifications:
+    email: true
+
+before_install:
+    - if [ `uname` = "Linux" ]; then
+        sudo apt-get update -qq -y;
+        sudo apt-get install libredis-perl libsnappy-dev -y;
+      elif [ `uname` = "Darwin" ]; then
+        brew update;
+        brew install snappy;
+	cpan install Redis
+      fi
+
+script:
+    - make 
+    - make test
+    - echo "Ready for packaging..."
