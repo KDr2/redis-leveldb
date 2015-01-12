@@ -4,7 +4,7 @@
 use 5.010;
 use Test::More;
 use Tester;
-no warnings 'experimental::smartmatch';
+BEGIN{ eval "no warnings 'experimental::smartmatch'"; }
 
 my $tester = Tester->new(db_number=>4);
 $tester->start();
