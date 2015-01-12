@@ -3,10 +3,6 @@ os:
     - linux
     - osx
 
-perl:
-    - "5.12"
-    - "5.20"
-
 notifications:
     email: true
 
