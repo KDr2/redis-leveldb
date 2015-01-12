@@ -8,6 +8,9 @@ as a Redis-Server.
 
 Current Version: 1.6
 
+.. image:: https://travis-ci.org/KDr2/redis-leveldb.svg?branch=master
+    :target: https://travis-ci.org/KDr2/redis-leveldb
+
 Redis COMMAND Supported
 ------------------------------------------------------------
 
