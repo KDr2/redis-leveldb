@@ -9,10 +9,11 @@ notifications:
 before_install:
     - if [ `uname` = "Linux" ]; then
         sudo apt-get update -qq -y;
-        sudo apt-get install libredis-perl libsnappy-dev -y;
+        sudo apt-get install libredis-perl libsnappy-dev libev-dev -y;
       elif [ `uname` = "Darwin" ]; then
         brew update;
         brew install snappy;
+        brew install libev;
         cpan install Redis;
       fi
 
