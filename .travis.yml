@@ -13,7 +13,7 @@ before_install:
       elif [ `uname` = "Darwin" ]; then
         brew update;
         brew install snappy;
-        cpan install Redis
+        cpan install Redis;
       fi
 
 script:
