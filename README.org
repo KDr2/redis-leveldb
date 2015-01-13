@@ -8,10 +8,12 @@ Redis-LevelDB is a redis-protocol compatible frontend to google's
 leveldb: Use leveldb as a Redis-Server.
 
 #+BEGIN_HTML
-<a href="https://travis-ci.org/KDr2/redis-leveldb" target="_blank">
+<a href="https://travis-ci.org/KDr2/redis-leveldb" target="_blank" style="float: right;">
 <img alt="CI BUILD STATUS" src="https://travis-ci.org/KDr2/redis-leveldb.svg?branch=master" style="max-width:100%;">
 </a>
 #+END_HTML
+
+Current Version: 1.6
 
 * Redis COMMAND Supported
   See the [[http://kdr2.com/project/redis-leveldb.html][Document]].
@@ -56,5 +58,5 @@ leveldb: Use leveldb as a Redis-Server.
 * Test Suite
   - dependencies: perl5(>=v5.10) with Redis.pm
   - run test: ~make test~
-* Knwon Issues
+* Known Issues
   -  [[https://github.com/KDr2/redis-leveldb/issues/13][issue 13]]: signle data package size limitation.
