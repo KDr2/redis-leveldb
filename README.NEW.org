@@ -1,0 +1,60 @@
+# -*- mode: org; mode: auto-fill -*-
+#+TITLE: Redis-Leveldb
+#+AUTHOR: KDr2
+
+* Introduction
+
+Redis-LevelDB is a redis-protocol compatible frontend to google's
+leveldb: Use leveldb as a Redis-Server.
+
+#+BEGIN_HTML
+<a href="https://travis-ci.org/KDr2/redis-leveldb" target="_blank">
+<img alt="CI BUILD STATUS" src="https://travis-ci.org/KDr2/redis-leveldb.svg?branch=master" style="max-width:100%;">
+</a>
+#+END_HTML
+
+* Redis COMMAND Supported
+  See the [[http://kdr2.com/project/redis-leveldb.html][Document]].
+
+* Dependencies
+  - libev(>=1.4):
+    install with apt-get or port please.
+  - gmp(http://gmplib.org/):
+    install with apt-get or port please.
+  - libsnappy
+  - leveldb:
+    * git clone git://github.com/KDr2/redis-leveldb.git
+    * cd redis-leveldb
+    * git submodule init
+    * git submodule update
+
+* Compile
+  #+BEGIN_SRC sh
+    [LIBEV=LIBEV_PREFIX GMP=GMP_PREFIX DEBUG=1] make
+  #+END_SRC
+
+* Run
+
+  #+BEGIN_SRC sh
+    ./redis-leveldb -h
+  #+END_SRC
+
+
+** options:
+   - -d:              run redis-level as a daemon process
+   - -H <host-ip>:    host addr to listen on(eg: 127.0.0.1)
+   - -P <port>:	     port to listen on(default 8323)
+   - -D <data-dir>:   leveldb data dir(default "redis.db" under your
+     work directory)
+   - -M <number>:     run in multi-db mode and set its db count to
+     <number>, each db in the server is a separatly leveldb database
+     and its data directory is a directory named =db-<num>= under the
+     directory you specified with the option =-D=; you can use
+     command =select= to switch db on the client side while
+     redis-leveldb is running in this mode.
+
+* Test Suite
+  - dependencies: perl5(>=v5.10) with Redis.pm
+  - run test: ~make test~
+* Knwon Issues
+  -  [[https://github.com/KDr2/redis-leveldb/issues/13][issue 13]]: signle data package size limitation.
