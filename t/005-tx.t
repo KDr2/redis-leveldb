@@ -4,7 +4,6 @@
 use 5.010;
 use Test::More;
 use Tester;
-BEGIN{ eval "no warnings 'experimental::smartmatch'"; }
 
 my $tester = Tester->new;
 $tester->start();
@@ -21,7 +20,7 @@ for ( 1..20 ) {
 }
 
 my $result = $tester->try("exec");
-ok(@$result ~~ @{[(map +("1", "$_"), 1..20)]}, "command exec");
+is_deeply(\@$result, \@{[(map +("1", "$_"), 1..20)]}, "command exec");
 is($tester->try("llen", $list_name), 20, "command llen");
 ok($tester->try("get", $key_name) == 20, "command incr");
 

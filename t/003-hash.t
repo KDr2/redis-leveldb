@@ -4,7 +4,6 @@
 use 5.010;
 use Test::More;
 use Tester;
-BEGIN{ eval "no warnings 'experimental::smartmatch'"; }
 
 my $tester = Tester->new;
 $tester->start();
@@ -30,15 +29,15 @@ ok($tester->try("hexists", $hash_name, "key-7"), 'command hexists');
 
 my %items_in_db = $tester->try("hgetall", $hash_name);
 my %items_expected = map {; "key-$_" => "val-$_" } 1..20;
-ok(%items_in_db ~~ %items_expected, "command hgetall");
+is_deeply(\%items_in_db, \%items_expected, "command hgetall");
 
 my %keys_in_db = $tester->try("hkeys", $hash_name);
 my %keys_expected = map {; "key-$_" } 1..20;
-ok(%keys_in_db ~~ %keys_expected, "command hkeys");
+is_deeply(\%keys_in_db, \%keys_expected, "command hkeys");
 
 my %vals_in_db = $tester->try("hvals", $hash_name);
 my %vals_expected = map {; "val-$_" } 1..20;
-ok(%vals_in_db ~~ %vals_expected, "command hvals");
+is_deeply(\%vals_in_db, \%vals_expected, "command hvals");
 
 $tester->stop;
 done_testing;

@@ -4,7 +4,6 @@
 use 5.010;
 use Test::More;
 use Tester;
-BEGIN{ eval "no warnings 'experimental::smartmatch'"; }
 
 my $tester = Tester->new;
 $tester->start();
@@ -26,7 +25,7 @@ $tester->client->incrby('test-inc-1', 1024);
 ok($tester->client->get('test-inc-1') == 2048, 'command incrby');
 
 $tester->client->mset('mset_k1' => 1, 'mset_k2'=>2, 'mset_k3'=>3);
-ok($tester->client->mget('mset_k1', 'mset_k2', 'mset_k3') ~~ [1, 2, 3], 'command mset/mget');
+is_deeply([$tester->client->mget('mset_k1', 'mset_k2', 'mset_k3')], [1, 2, 3], 'command mset/mget');
 
 $tester->stop;
 done_testing;
