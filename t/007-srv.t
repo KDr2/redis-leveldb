@@ -32,9 +32,11 @@ is_deeply(\@keys_in_db, \@expected_keys, "command keys");
 
 # command info
 my $info = $tester->try("info", "k");
-ok($info->{keys} =~ /\s*12\s*/, "command info keys");
-ok($info->{mode} =~ /\s*single\s*/, "command info mode");
-ok($info->{clients_num} =~ /\s*1\s*/, "command info clients_num");
+my $x = $info->{keys};
+
+like($info->{keys}, qr/\s*12\s*/, "command info keys");
+like($info->{mode}, qr/\s*single\s*/, "command info mode");
+like($info->{clients_num}, qr/\s*1\s*/, "command info clients_num");
 
 # command shutdown
 my $shutdown_status = $tester->try("shutdown");
