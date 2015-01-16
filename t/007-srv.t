@@ -32,9 +32,9 @@ is_deeply(\@keys_in_db, \@expected_keys, "command keys");
 
 # command info
 my $info = $tester->try("info", "k");
-ok($info->{keys} =~ /\s*12\s*/, "commands info");
-ok($info->{mode} =~ /\s*single\s*/, "commands info");
-ok($info->{clients_num} =~ /\s*1\s*/, "commands info");
+ok($info->{keys} =~ /\s*12\s*/, "command info keys");
+ok($info->{mode} =~ /\s*single\s*/, "command info mode");
+ok($info->{clients_num} =~ /\s*1\s*/, "command info clients_num");
 
 # command shutdown
 my $shutdown_status = $tester->try("shutdown");
