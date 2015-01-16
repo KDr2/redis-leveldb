@@ -30,6 +30,12 @@ for my $key (@keys) {
 my @keys_in_db = $tester->try("keys", "*");
 is_deeply(\@keys_in_db, \@expected_keys, "command keys");
 
+# command info
+my $info = $tester->try("info", "k");
+ok($info->{keys} =~ /\s*12\s*/, "commands info");
+ok($info->{mode} =~ /\s*single\s*/, "commands info");
+ok($info->{clients_num} =~ /\s*1\s*/, "commands info");
+
 # command shutdown
 my $shutdown_status = $tester->try("shutdown");
 is($shutdown_status, 1, "command shutdown");
