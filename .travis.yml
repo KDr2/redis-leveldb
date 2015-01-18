@@ -10,7 +10,7 @@ before_install:
     - if [ `uname` = "Linux" ]; then
         sudo apt-get update -qq -y;
         sudo apt-get install libsnappy-dev libev-dev libgmp-dev -y;
-        cpan install Redis;
+        yes|cpan -f -i Redis;
       elif [ `uname` = "Darwin" ]; then
         brew update;
         brew install snappy;
