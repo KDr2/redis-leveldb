@@ -9,14 +9,15 @@ notifications:
 before_install:
     - if [ `uname` = "Linux" ]; then
         sudo apt-get update -qq -y;
-        sudo apt-get install libsnappy-dev libev-dev libgmp-dev -y;
-        yes|cpan -f -i Redis;
+        sudo apt-get install libsnappy-dev libev-dev libgmp-dev cpanminus perl -y;
+        sudo cpanm --quiet --notest --skip-satisfied --force Redis;
       elif [ `uname` = "Darwin" ]; then
         brew update;
         brew install snappy;
         brew install libev;
         brew install gmp;
-        cpan install Redis;
+        brew install cpanminus;
+        sudo cpanm --quiet --notest --skip-satisfied --force Redis;
       fi
 
 script:
