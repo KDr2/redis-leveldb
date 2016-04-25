@@ -49,4 +49,4 @@ distclean: clean
 	cd ../vendor/leveldb; make clean
 
 ../vendor/libleveldb.a:
-	cd ../vendor/leveldb; make && cp libleveldb.a ..
+	cd ../vendor/leveldb; make && cp out-static/libleveldb.a ..
