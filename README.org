@@ -8,8 +8,8 @@ Redis-LevelDB is a redis-protocol compatible frontend to google's
 leveldb: Use leveldb as a Redis-Server.
 
 #+BEGIN_HTML
-<a href="https://travis-ci.org/KDr2/redis-leveldb" target="_blank" style="float: right;">
-<img alt="CI BUILD STATUS" src="https://travis-ci.org/KDr2/redis-leveldb.svg?branch=master" style="max-width:100%;">
+<a href="https://github.com/KDr2/redis-leveldb/actions/workflows/Testing.yaml" target="_blank" style="float: right;">
+<img alt="CI BUILD STATUS" src="https://github.com/KDr2/redis-leveldb/actions/workflows/Testing.yaml/badge.svg" style="max-width:100%;">
 </a>
 #+END_HTML
 

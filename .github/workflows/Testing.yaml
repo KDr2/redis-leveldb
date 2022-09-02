@@ -7,7 +7,6 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    continue-on-error: true # ${{ matrix.version == 'nightly' }}
     strategy:
       matrix:
         os:
@@ -16,7 +15,12 @@ jobs:
         arch:
           - x64
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      # - name: Checkout submodules
+      #   run: git submodule update --init --recursive
       - name: Install Dependencies
         run: |
           if [ `uname` = "Linux" ]; then
@@ -31,8 +35,9 @@ jobs:
             brew install cpanminus;
             sudo cpanm --quiet --notest --skip-satisfied --force Redis;
           fi
+      - name: Build
+        run: make
       - name: Unit Testing
         run: |
-          make
           make test
           echo "Ready for packaging..."
