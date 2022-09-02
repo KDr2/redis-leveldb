@@ -1,0 +1,43 @@
+name: Redis-LevelDB Testing
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macOS-latest
+        arch:
+          - x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      # - name: Checkout submodules
+      #   run: git submodule update --init --recursive
+      - name: Install Dependencies
+        run: |
+          if [ `uname` = "Linux" ]; then
+            sudo apt-get update -qq -y;
+            sudo apt-get install libsnappy-dev libev-dev libgmp-dev cpanminus perl -y;
+            sudo cpanm --quiet --notest --skip-satisfied --force Redis;
+          elif [ `uname` = "Darwin" ]; then
+            brew update;
+            brew install snappy;
+            brew install libev;
+            brew install gmp;
+            brew install cpanminus;
+            sudo cpanm --quiet --notest --skip-satisfied --force Redis;
+          fi
+      - name: Build
+        run: make
+      - name: Unit Testing
+        run: |
+          make test
+          echo "Ready for packaging..."
